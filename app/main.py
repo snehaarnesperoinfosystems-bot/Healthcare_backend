@@ -1,15 +1,15 @@
 from fastapi import FastAPI
+from app.api.report import router as report_router
 
 app = FastAPI(
     title="Healthcare AI Report Analyzer",
-    description="AI-powered Healthcare Report Analyzer using FastAPI and MedGemma",
     version="1.0.0"
 )
 
+app.include_router(report_router)
 
 @app.get("/")
 async def home():
     return {
-        "status": "success",
-        "message": "Healthcare AI Backend is Running 🚀"
+        "message": "Healthcare AI Backend Running 🚀"
     }
