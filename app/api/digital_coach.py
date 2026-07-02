@@ -13,42 +13,76 @@ logger = logging.getLogger("digital_coach")
 class CoachRequest(BaseModel):
     patient_id: int
 
-def _generate_dynamic_advice(diagnosis: str, risk_tier: str, age: int, sex: str) -> dict:
+def _generate_dynamic_advice(diagnosis: str, risk_assessment: str, recommended_tests: str,
+                              treatment_suggestions: str, risk_tier: str, age: int, sex: str) -> dict:
     """
-    Yeh function patient ke diagnosis aur profile ko check karke 
-    custom Diet, Sleep aur Exercise advice generate karta hai.
+    Yeh function patient ki PURI report (diagnosis, risk assessment, recommended tests,
+    treatment suggestions) ko study karke uske liye personalized
+    Diet Plan, Sleep Hygiene, aur Exercise advice generate karta hai.
     """
-    # Default advice (agar koi specific diagnosis na ho)
+    # Default advice (agar koi specific condition na mile)
     advice = {
         "diet": "Maintain a balanced diet rich in vegetables and lean proteins. Stay hydrated.",
         "sleep": "Aim for 7-8 hours of consistent sleep nightly.",
         "exercise": "30 minutes of moderate cardio daily is recommended."
     }
 
-    diag = (diagnosis or "").lower()
+    # Puri report ka text ek jagah combine karo taaki poora context mile,
+    # sirf diagnosis field tak seemित na rahe
+    full_text = " ".join(filter(None, [
+        diagnosis, risk_assessment, recommended_tests, treatment_suggestions
+    ])).lower()
 
-    # 1. Agar Diabetes ya Blood Sugar hai
-    if "diabetes" in diag or "blood sugar" in diag:
-        advice["diet"] = "Low glycemic index foods (whole grains, beans). Strictly avoid refined sugar."
-        advice["exercise"] = "30 mins brisk walking post-meals is highly recommended."
-        
-    # 2. Agar Hypertension ya Blood Pressure hai
-    elif "hypertension" in diag or "blood pressure" in diag:
-        advice["diet"] = "Low sodium (DASH diet). Avoid pickles and fried food. Eat potassium-rich foods."
-        advice["exercise"] = "Moderate aerobic exercise like walking or swimming. Avoid heavy weightlifting."
-        
-    # 3. Agar Cholesterol / Lipid issue hai
-    elif "cholesterol" in diag or "lipid" in diag:
-        advice["diet"] = "Reduce saturated fats. Increase omega-3s (fish, walnuts) and soluble fiber (oats)."
-        advice["exercise"] = "40 minutes of moderate-to-vigorous cardio 4-5 times a week."
+    diet_notes = []
+    sleep_notes = []
+    exercise_notes = []
 
-    # 4. Agar patient ka age zyada hai (Elderly care)
+    # 1. Diabetes / Blood Sugar
+    if any(k in full_text for k in ["diabetes", "blood sugar", "hba1c", "glucose"]):
+        diet_notes.append("Low glycemic index foods (whole grains, beans, leafy greens). Strictly avoid refined sugar and sugary drinks.")
+        exercise_notes.append("30 mins brisk walking after meals helps control blood sugar spikes.")
+
+    # 2. Hypertension / Cardiac / Cholesterol
+    if any(k in full_text for k in ["hypertension", "blood pressure", "cardiac", "heart"]):
+        diet_notes.append("Low sodium (DASH-style diet). Avoid pickles, processed and fried food. Eat potassium-rich foods like bananas and spinach.")
+        exercise_notes.append("Moderate aerobic exercise like walking or swimming; avoid heavy weightlifting without clearance.")
+
+    if any(k in full_text for k in ["cholesterol", "lipid", "ldl", "triglyceride"]):
+        diet_notes.append("Reduce saturated and trans fats. Increase omega-3s (fish, walnuts, flaxseed) and soluble fiber (oats, beans).")
+        exercise_notes.append("40 minutes of moderate-to-vigorous cardio, 4-5 times a week, supports healthy lipid levels.")
+
+    # 3. Thyroid conditions
+    if any(k in full_text for k in ["thyroid", "hypothyroid", "hyperthyroid", "tsh", " t3", " t4"]):
+        diet_notes.append("Include iodine-rich foods (dairy, eggs) and selenium (nuts, seeds); avoid excess raw cruciferous vegetables.")
+        sleep_notes.append("Thyroid imbalances often cause fatigue — prioritize 8+ hours of quality, uninterrupted sleep.")
+        exercise_notes.append("Start with light to moderate activity; avoid overexertion until thyroid levels stabilize.")
+
+    # 4. Anemia / Iron deficiency
+    if any(k in full_text for k in ["anemia", "iron deficiency", "ferritin", "hemoglobin"]):
+        diet_notes.append("Increase iron-rich foods (spinach, red meat, lentils) paired with vitamin C to boost absorption.")
+        exercise_notes.append("Keep exercise light to moderate until iron levels normalize, to avoid excessive fatigue.")
+
+    # 5. Kidney-related concerns
+    if any(k in full_text for k in ["kidney", "creatinine", "renal"]):
+        diet_notes.append("Moderate protein and sodium intake; stay well hydrated unless advised otherwise by your doctor.")
+
+    # 6. Age-based adjustment (Elderly care)
     if age and age > 60:
-        advice["exercise"] = "Focus on light yoga and balance exercises to prevent falls. " + advice["exercise"]
+        exercise_notes.append("Focus on light yoga and balance exercises to reduce fall risk.")
 
-    # 5. Agar Risk High hai
+    # 7. Overall risk tier
     if risk_tier and risk_tier.lower() == "high":
-        advice["sleep"] = "High stress levels detected. Practice deep breathing before bed. " + advice["sleep"]
+        sleep_notes.append("High risk detected — practice deep breathing or meditation before bed to manage stress.")
+        diet_notes.append("Strict dietary discipline is critical given the current risk level.")
+
+    # Agar koi specific condition detect hui, to us par based advice use karo;
+    # warna default advice hi rahegi
+    if diet_notes:
+        advice["diet"] = " ".join(diet_notes)
+    if sleep_notes:
+        advice["sleep"] = " ".join(sleep_notes)
+    if exercise_notes:
+        advice["exercise"] = " ".join(exercise_notes)
 
     return advice
 
@@ -75,7 +109,7 @@ async def generate_coach_plan(request: CoachRequest, db: Session = Depends(get_d
     # Agar koi report nahi hai toh generic advice do
     if not latest_report:
         logger.info(f"[Digital Coach] No reports found for patient_id={request.patient_id}. Giving generic advice.")
-        advice_data = _generate_dynamic_advice("", "Unknown", patient.age, patient.sex)
+        advice_data = _generate_dynamic_advice("", "", "", "", "Unknown", patient.age, patient.sex)
         return {
             "patient_id": request.patient_id,
             "patient_name": patient.name,
@@ -83,9 +117,12 @@ async def generate_coach_plan(request: CoachRequest, db: Session = Depends(get_d
             **advice_data
         }
 
-    # 3. Report ke basis par dynamic advice generate karo
+    # 3. Report ki puri details ke basis par dynamic advice generate karo
     personalized_advice = _generate_dynamic_advice(
         diagnosis=latest_report.diagnosis,
+        risk_assessment=latest_report.risk_assessment,
+        recommended_tests=latest_report.recommended_tests,
+        treatment_suggestions=latest_report.treatment_suggestions,
         risk_tier=latest_report.risk_tier,
         age=patient.age,
         sex=patient.sex

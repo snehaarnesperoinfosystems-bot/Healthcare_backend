@@ -41,6 +41,17 @@ async function fetchDecisionSummary(id) {
   return data;
 }
 
+async function fetchCoachPlan(patientId) {
+  const res = await fetch(`${API_BASE}/digital-coach/generate-plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patient_id: patientId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Could not generate coach plan");
+  return data;
+}
+
 /* ------------------------------ Risk helpers ------------------------------ */
 const RISK_META = {
   high: { label: "Elevated risk", color: "risk-high" },
@@ -99,7 +110,14 @@ function UploadZone({ onFile, busy }) {
     >
       <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} hidden disabled={busy} />
       <div className={`upload-icon-wrap ${busy ? "pulse" : ""}`}>
-        {busy ? <p className="upload-title">Analyzing & saving…</p> : <><p className="upload-title">Upload a lab report</p><p className="upload-sub">PDF, JPG or PNG · Automatically saved to Care Hub</p></>}
+        {busy ? (
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
+            <p className="upload-title" style={{color: "var(--accent)"}}>Analyzing & saving…</p>
+            <p className="upload-sub" style={{marginTop: '4px'}}>Processing document... Large files may take up to 60 seconds.</p>
+          </div>
+        ) : (
+          <><p className="upload-title">Upload a lab report</p><p className="upload-sub">PDF, JPG or PNG · Automatically saved to Care Hub</p></>
+        )}
       </div>
     </div>
   );
@@ -149,31 +167,20 @@ function ResultsView({ result, filename, onReset }) {
   );
 }
 
-function AnalyzeTab() {
-  const [status, setStatus] = useState("idle");
-  const [result, setResult] = useState(null);
-  const [filename, setFilename] = useState("");
-
-  const handleFile = useCallback(async (file) => {
-    setStatus("uploading"); setFilename(file.name);
-    try { const data = await uploadAndSave(file); setResult(data); setStatus("done"); } 
-    catch (err) { alert("Upload Error: " + err.message); setStatus("idle"); }
-  }, []);
-
-  const reset = () => { setStatus("idle"); setResult(null); setFilename(""); };
-
+// AnalyzeTab now uses state from parent (App) so it doesn't reset on tab switch
+function AnalyzeTab({ status, result, filename, onUpload, onReset }) {
   if (status === "idle" || status === "uploading") {
     return (
       <div className="hero">
         <p className="hero-eyebrow">Patient report tool</p>
         <h1 className="hero-title">Understand your lab results in plain language</h1>
         <p className="hero-sub">Upload a report and get a structured breakdown. Saved automatically to the patient's history.</p>
-        <UploadZone onFile={handleFile} busy={status === "uploading"} />
+        <UploadZone onFile={onUpload} busy={status === "uploading"} />
         <div className="trust-row"><span>&#10003; Processed locally</span><span>&#10003; Saved to Care Hub</span><span>&#10003; PDF & image support</span></div>
       </div>
     );
   }
-  return <ResultsView result={result} filename={filename} onReset={reset} />;
+  return <ResultsView result={result} filename={filename} onReset={onReset} />;
 }
 
 /* -------------------------------- Patients tab -------------------------------- */
@@ -186,17 +193,7 @@ function PatientListItem({ patient, onSelect }) {
   );
 }
 
-function PatientsList({ onSelect }) {
-  const [patients, setPatients] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => { 
-    fetchPatients()
-      .then(setPatients)
-      .catch(err => setError(err.message));
-  }, []);
-
-  if (error) return <p className="empty-note" style={{color: "var(--coral)"}}>Backend Error: {error}. Please check if FastAPI is running.</p>;
+function PatientsList({ patients, onSelect }) {
   if (!patients) return <p className="empty-note">Loading patients...</p>;
   if (patients.length === 0) return <p className="empty-note">No patients yet. Analyze a report first.</p>;
   return <div>{patients.map((p) => <PatientListItem key={p.id} patient={p} onSelect={onSelect} />)}</div>;
@@ -278,14 +275,7 @@ function KnowledgeGraphLegend() { return <div className="kg-legend">{Object.entr
 
 function KnowledgeGraphPanel({ patientId }) {
   const [graph, setGraph] = useState(null);
-  const [graphError, setGraphError] = useState(null);
-  useEffect(() => { 
-    fetchPatientGraph(patientId)
-      .then(setGraph)
-      .catch(err => setGraphError(err.message));
-  }, [patientId]);
-  
-  if (graphError) return <p className="empty-note" style={{color: "var(--coral)"}}>Graph Error: {graphError}</p>;
+  useEffect(() => { fetchPatientGraph(patientId).then(setGraph).catch(console.error); }, [patientId]);
   if (!graph) return <p className="empty-note">Loading graph...</p>;
   if (!graph.edges || graph.edges.length === 0) return <p className="empty-note">No connected entities yet.</p>;
   return <><p className="prose-text" style={{marginBottom:'14px'}}>Conditions, tests, and treatments extracted across this patient's reports.</p><KnowledgeGraphCanvas nodes={graph.nodes} edges={graph.edges} /><KnowledgeGraphLegend /></>;
@@ -299,10 +289,30 @@ function ReportHistoryCard({ report }) {
 /* -------------------------------- Patient Detail -------------------------------- */
 function PatientDetail({ patientId, onBack }) {
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
   const [showHealthTwin, setShowHealthTwin] = useState(false);
 
-  useEffect(() => { fetchPatientReports(patientId).then(setData).catch(console.error); }, [patientId]);
+  useEffect(() => { 
+    setData(null); 
+    setError(null);
+    fetchPatientReports(patientId)
+      .then(setData)
+      .catch(err => setError(err.message)); 
+  }, [patientId]);
   
+  // Error state: Jab backend band ho ya PDF upload ki wajah se block ho
+  if (error) {
+    return (
+      <div>
+        <div className="action-row"><button className="btn-outline" onClick={onBack}>← All patients</button></div>
+        <p className="empty-note" style={{color: "var(--coral)", marginTop: "40px"}}>
+          Could not load patient profile. Error: {error}. <br/>
+          Please check if the FastAPI server is running or not busy processing another request.
+        </p>
+      </div>
+    );
+  }
+
   if (!data) return <p className="empty-note">Loading patient profile...</p>;
   
   const riskTier = data.patient?.latest_risk_tier || data.reports?.[0]?.risk_tier || "moderate";
@@ -350,7 +360,6 @@ function PatientDetail({ patientId, onBack }) {
               <p className="prose-text">{riskTier === 'low' ? "Patient is stable." : "Risks can decrease by 20% if medication adherence is strict."}</p>
             </div>
           </div>
-          
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'16px'}}>
              <div className="finding-card">
                <div className="finding-head"><div className="finding-icon">{ICONS.diagnosis}</div><div className="finding-label">Active Conditions</div></div>
@@ -380,7 +389,7 @@ function PatientDetail({ patientId, onBack }) {
   );
 }
 
-function PatientsTab() {
+function PatientsTab({ globalPatients }) {
   const [selectedId, setSelectedId] = useState(null);
   if (selectedId) return <PatientDetail patientId={selectedId} onBack={() => setSelectedId(null)} />;
   return (
@@ -388,35 +397,41 @@ function PatientsTab() {
       <p className="hero-eyebrow">Care Hub</p>
       <h1 className="hero-title">Patients</h1>
       <p className="hero-sub">Every analyzed report is saved here, grouped by patient.</p>
-      <div style={{marginTop: '24px', maxWidth: '600px', margin: '24px auto 0'}}><PatientsList onSelect={setSelectedId} /></div>
+      <div style={{marginTop: '24px', maxWidth: '600px', margin: '24px auto 0'}}><PatientsList patients={globalPatients} onSelect={setSelectedId} /></div>
     </div>
   );
 }
 
 /* -------------------------------- AI ASSISTANT TAB -------------------------------- */
-function AIAssistantTab() {
-  const [patients, setPatients] = useState(null);
-  const [patientsError, setPatientsError] = useState(null);
+function AIAssistantTab({ globalPatients }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientData, setPatientData] = useState(null);
+  const [coachPlan, setCoachPlan] = useState(null);
+  const [coachLoading, setCoachLoading] = useState(false);
 
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([{ sender: "bot", text: "Hello Doctor! I am your AI Assistant. Select a patient to get personalized health guidance." }]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
-  useEffect(() => { 
-    fetchPatients()
-      .then(setPatients)
-      .catch(err => setPatientsError(err.message));
-  }, []);
-
   const loadPatient = async (patient) => {
     setSelectedPatient(patient);
+    setCoachPlan(null);
+    setCoachLoading(true);
     try {
       const data = await fetchPatientReports(patient.id);
       setPatientData(data);
       setChatMessages(prev => [...prev, { sender: "bot", text: `Profile loaded for ${patient.name}. You can ask me anything about their health below!` }]);
     } catch (err) { alert("Error loading patient: " + err.message); }
+
+    try {
+      const plan = await fetchCoachPlan(patient.id);
+      setCoachPlan(plan);
+    } catch (err) {
+      console.error("Coach plan fetch failed, using local fallback:", err);
+      setCoachPlan(null);
+    } finally {
+      setCoachLoading(false);
+    }
   };
 
   const handleChatSend = async () => {
@@ -450,14 +465,12 @@ function AIAssistantTab() {
         <h1 className="hero-title">Digital Coach & Clinical Advisor</h1>
         <p className="hero-sub">Select a patient to get personalized diet plans, lifestyle guidance, and medical advice.</p>
         <div style={{marginTop: '24px', maxWidth: '600px', margin: '24px auto 0'}}>
-          {patientsError ? (
-            <p className="empty-note" style={{color: "var(--coral)"}}>Backend Error: {patientsError}. Please check if FastAPI is running.</p>
-          ) : !patients ? (
+          {!globalPatients ? (
             <p className="empty-note">Loading...</p>
-          ) : patients.length === 0 ? (
+          ) : globalPatients.length === 0 ? (
             <p className="empty-note">No patients yet. Analyze a report first.</p>
           ) : (
-            patients.map(p => (
+            globalPatients.map(p => (
               <button key={p.id} className="patient-row" onClick={() => loadPatient(p)}>
                 <div><div className="patient-row-name">{p.name}</div><div className="patient-row-meta">Age {p.age}</div></div>
               </button>
@@ -488,6 +501,12 @@ function AIAssistantTab() {
   if (hasThyroid) sleepAdvice = "Thyroid imbalances can cause fatigue. Prioritize 8+ hours of quality sleep.";
   if (riskTier === 'high') sleepAdvice = "Prioritize 8+ hours of sleep. Stress management is critical.";
 
+  if (coachPlan) {
+    dietAdvice = coachPlan.diet || dietAdvice;
+    sleepAdvice = coachPlan.sleep || sleepAdvice;
+    exerciseAdvice = coachPlan.exercise || exerciseAdvice;
+  }
+
   return (
     <div>
       <div className="action-row">
@@ -500,20 +519,24 @@ function AIAssistantTab() {
       </div>
 
       <h3 style={{fontSize: "16px", margin: "20px 0 12px", fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)"}}>Digital Health Coach</h3>
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px', marginBottom: '32px'}}>
-        <div className="finding-card highlight">
-          <div className="finding-head"><div className="finding-icon">{ICONS.treatment}</div><div className="finding-label">Diet Plan</div></div>
-          <p className="prose-text">{dietAdvice}</p>
+      {coachLoading ? (
+        <p className="empty-note" style={{marginBottom: '32px'}}>Generating personalized plan...</p>
+      ) : (
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px', marginBottom: '32px'}}>
+          <div className="finding-card highlight">
+            <div className="finding-head"><div className="finding-icon">{ICONS.treatment}</div><div className="finding-label">Diet Plan</div></div>
+            <p className="prose-text">{dietAdvice}</p>
+          </div>
+          <div className="finding-card">
+            <div className="finding-head"><div className="finding-icon">{ICONS.precautions}</div><div className="finding-label">Sleep Hygiene</div></div>
+            <p className="prose-text">{sleepAdvice}</p>
+          </div>
+          <div className="finding-card">
+            <div className="finding-head"><div className="finding-icon">{ICONS.trend}</div><div className="finding-label">Exercise</div></div>
+            <p className="prose-text">{exerciseAdvice}</p>
+          </div>
         </div>
-        <div className="finding-card">
-          <div className="finding-head"><div className="finding-icon">{ICONS.precautions}</div><div className="finding-label">Sleep Hygiene</div></div>
-          <p className="prose-text">{sleepAdvice}</p>
-        </div>
-        <div className="finding-card">
-          <div className="finding-head"><div className="finding-icon">{ICONS.trend}</div><div className="finding-label">Exercise</div></div>
-          <p className="prose-text">{exerciseAdvice}</p>
-        </div>
-      </div>
+      )}
 
       <h3 style={{fontSize: "16px", margin: "20px 0 12px", fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)"}}>AI Clinical Advisor</h3>
       <div className="finding-card highlight">
@@ -533,16 +556,60 @@ function AIAssistantTab() {
   );
 }
 
-/* ---------------------------------- App ---------------------------------- */
+/* ---------------------------------- App (Global State) ---------------------------------- */
 export default function App() {
   const [tab, setTab] = useState("analyze");
+  
+  // Global Patient State
+  const [globalPatients, setGlobalPatients] = useState(null);
+
+  // Global Upload State (Persists on tab switch!)
+  const [analysisStatus, setAnalysisStatus] = useState("idle");
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisFilename, setAnalysisFilename] = useState("");
+
+  // Fetch patients only once when the app starts
+  useEffect(() => {
+    fetchPatients()
+      .then(setGlobalPatients)
+      .catch(err => console.error("Failed to load patients on mount:", err));
+  }, []);
+
+  // Function to refresh patients (called after a new PDF is uploaded)
+  const refreshPatients = useCallback(() => {
+    fetchPatients()
+      .then(setGlobalPatients)
+      .catch(err => console.error("Failed to refresh patients:", err));
+  }, []);
+
+  // Handle File Upload
+  const handleUpload = useCallback(async (file) => {
+    setAnalysisStatus("uploading");
+    setAnalysisFilename(file.name);
+    try {
+      const data = await uploadAndSave(file);
+      setAnalysisResult(data);
+      setAnalysisStatus("done");
+      refreshPatients(); // Refresh patient list after successful upload
+    } catch (err) {
+      alert("Upload Error: " + err.message);
+      setAnalysisStatus("idle");
+    }
+  }, [refreshPatients]);
+
+  // Reset Upload State
+  const handleResetAnalysis = () => {
+    setAnalysisStatus("idle");
+    setAnalysisResult(null);
+    setAnalysisFilename("");
+  };
 
   const renderTab = () => {
     switch(tab) {
-      case "analyze": return <AnalyzeTab />;
-      case "patients": return <PatientsTab />;
-      case "assistant": return <AIAssistantTab />;
-      default: return <AnalyzeTab />;
+      case "analyze": return <AnalyzeTab status={analysisStatus} result={analysisResult} filename={analysisFilename} onUpload={handleUpload} onReset={handleResetAnalysis} />;
+      case "patients": return <PatientsTab globalPatients={globalPatients} />;
+      case "assistant": return <AIAssistantTab globalPatients={globalPatients} />;
+      default: return <AnalyzeTab status={analysisStatus} result={analysisResult} filename={analysisFilename} onUpload={handleUpload} onReset={handleResetAnalysis} />;
     }
   }
 

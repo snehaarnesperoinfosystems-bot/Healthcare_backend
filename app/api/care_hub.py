@@ -11,6 +11,7 @@ from app.services.risk_engine import calculate_risk
 from app.services.pdf_service import extract_text_from_pdf
 from app.services.ai_service import analyze_medical_text, analyze_medical_image
 from app.services.entity_extraction import extract_entities
+from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger("care_hub")
 logging.basicConfig(level=logging.INFO)
@@ -128,10 +129,6 @@ async def upload_and_save_report(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    """
-    Upload a PDF/JPG/PNG report — analyzes and saves it immediately.
-    Knowledge Graph entity extraction runs in the background afterward.
-    """
     allowed_extensions = [".pdf", ".jpg", ".jpeg", ".png"]
     ext = os.path.splitext(file.filename)[1].lower()
 
@@ -149,14 +146,18 @@ async def upload_and_save_report(
             buffer.write(contents)
 
         if ext == ".pdf":
-            text = extract_text_from_pdf(file_path)
+            # 🔧 CHANGED: blocking OCR call ab threadpool mein chalega
+            text = await run_in_threadpool(extract_text_from_pdf, file_path)
             if not text.strip():
                 raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
-            analysis = analyze_medical_text(text)
+            # 🔧 CHANGED: blocking LLM call ab threadpool mein chalega
+            analysis = await run_in_threadpool(analyze_medical_text, text)
         else:
-            analysis = analyze_medical_image(contents)
+            # 🔧 CHANGED
+            analysis = await run_in_threadpool(analyze_medical_image, contents)
 
-        result = _save_analysis_to_db(file.filename, analysis, db, background_tasks)
+        # 🔧 CHANGED: sync DB save bhi threadpool mein
+        result = await run_in_threadpool(_save_analysis_to_db, file.filename, analysis, db, background_tasks)
 
     except HTTPException:
         raise

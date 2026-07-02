@@ -64,7 +64,7 @@ def _parse_json(raw: str) -> dict:
     return json.loads(candidate)
 
 
-@router.get("/patients/{patient_id}")
+@router.post("/patients/{patient_id}")
 async def get_decision_summary(patient_id: int, db: Session = Depends(get_db)):
     """
     Combine a patient's full report history into one decision-support summary.
