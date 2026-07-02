@@ -99,7 +99,14 @@ function UploadZone({ onFile, busy }) {
     >
       <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} hidden disabled={busy} />
       <div className={`upload-icon-wrap ${busy ? "pulse" : ""}`}>
-        {busy ? <p className="upload-title">Analyzing & saving…</p> : <><p className="upload-title">Upload a lab report</p><p className="upload-sub">PDF, JPG or PNG · Automatically saved to Care Hub</p></>}
+        {busy ? (
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
+            <p className="upload-title" style={{color: "var(--accent)"}}>Analyzing & saving…</p>
+            <p className="upload-sub" style={{marginTop: '4px'}}>Processing document... Large files may take some time.</p>
+          </div>
+        ) : (
+          <><p className="upload-title">Upload a lab report</p><p className="upload-sub">PDF, JPG or PNG · Automatically saved to Care Hub</p></>
+        )}
       </div>
     </div>
   );
@@ -149,31 +156,20 @@ function ResultsView({ result, filename, onReset }) {
   );
 }
 
-function AnalyzeTab() {
-  const [status, setStatus] = useState("idle");
-  const [result, setResult] = useState(null);
-  const [filename, setFilename] = useState("");
-
-  const handleFile = useCallback(async (file) => {
-    setStatus("uploading"); setFilename(file.name);
-    try { const data = await uploadAndSave(file); setResult(data); setStatus("done"); } 
-    catch (err) { alert(err.message); setStatus("idle"); }
-  }, []);
-
-  const reset = () => { setStatus("idle"); setResult(null); setFilename(""); };
-
+// AnalyzeTab now uses state from parent (App) so it doesn't reset on tab switch
+function AnalyzeTab({ status, result, filename, onUpload, onReset }) {
   if (status === "idle" || status === "uploading") {
     return (
       <div className="hero">
         <p className="hero-eyebrow">Patient report tool</p>
-        <h1 className="hero-title">Understand your lab results in simple language</h1>
+        <h1 className="hero-title">Understand your lab results in plain language</h1>
         <p className="hero-sub">Upload a report and get a structured breakdown. Saved automatically to the patient's history.</p>
-        <UploadZone onFile={handleFile} busy={status === "uploading"} />
+        <UploadZone onFile={onUpload} busy={status === "uploading"} />
         <div className="trust-row"><span>&#10003; Processed locally</span><span>&#10003; Saved to Care Hub</span><span>&#10003; PDF & image support</span></div>
       </div>
     );
   }
-  return <ResultsView result={result} filename={filename} onReset={reset} />;
+  return <ResultsView result={result} filename={filename} onReset={onReset} />;
 }
 
 /* -------------------------------- Patients tab -------------------------------- */
@@ -186,9 +182,7 @@ function PatientListItem({ patient, onSelect }) {
   );
 }
 
-function PatientsList({ onSelect }) {
-  const [patients, setPatients] = useState(null);
-  useEffect(() => { fetchPatients().then(setPatients).catch(console.error); }, []);
+function PatientsList({ patients, onSelect }) {
   if (!patients) return <p className="empty-note">Loading patients...</p>;
   if (patients.length === 0) return <p className="empty-note">No patients yet. Analyze a report first.</p>;
   return <div>{patients.map((p) => <PatientListItem key={p.id} patient={p} onSelect={onSelect} />)}</div>;
@@ -206,7 +200,7 @@ function DecisionPanel({ patientId }) {
   const generate = async () => {
     setState("loading");
     try { const res = await fetchDecisionSummary(patientId); setData(res); setState("done"); } 
-    catch (err) { alert(err.message); setState("idle"); }
+    catch (err) { alert("Summary Error: " + err.message); setState("idle"); }
   };
   return (
     <div className="finding-card highlight">
@@ -233,14 +227,37 @@ function runForceLayout(nodes, edges, width, height, iterations = 300) {
 }
 
 function KnowledgeGraphCanvas({ nodes, edges }) {
-  const svgRef = useRef(null); const [positions, setPositions] = useState(null); const [hoveredNode, setHoveredNode] = useState(null); const [zoom, setZoom] = useState(1); const [pan, setPan] = useState({x:0, y:0}); const [isPanning, setIsPanning] = useState(false); const [panStart, setPanStart] = useState({x:0, y:0}); const width = 800, height = 450;
-  useEffect(() => { if (nodes.length === 0) return; const laid = runForceLayout(nodes, edges, width, height); setPositions(laid); }, [nodes, edges]);
-  const handleWheel = (e) => { e.preventDefault(); const factor = e.deltaY < 0 ? 1.1 : 0.9; setZoom(prev => Math.max(0.3, Math.min(4, prev * factor))); };
-  const handleMouseDown = (e) => { if(e.target.closest('.kg-node-group')) return; setIsPanning(true); setPanStart({x: e.clientX - pan.x, y: e.clientY - pan.y}); };
-  const handleMouseMove = (e) => { if(!isPanning) return; setPan({x: e.clientX - panStart.x, y: e.clientY - panStart.y}); };
-  const handleMouseUp = () => setIsPanning(false);
-  if (!positions) return null; const byId = Object.fromEntries(positions.map((n) => [n.id, n])); const connectedIds = hoveredNode ? new Set(edges.filter(e => e.source === hoveredNode || e.target === hoveredNode).flatMap(e => [e.source, e.target])) : null;
-  return ( <div className="kg-canvas-wrap" style={{position:'relative'}}> <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} className="kg-svg" onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}> <defs> <radialGradient id="grad-patient" cx="35%" cy="35%"><stop offset="0%" stopColor="#12A598"/><stop offset="100%" stopColor="#0A5F5E"/></radialGradient> <radialGradient id="grad-condition" cx="35%" cy="35%"><stop offset="0%" stopColor="#E84057"/><stop offset="100%" stopColor="#9C2F28"/></radialGradient> <radialGradient id="grad-test" cx="35%" cy="35%"><stop offset="0%" stopColor="#22A8D1"/><stop offset="100%" stopColor="#0A5F5E"/></radialGradient> <radialGradient id="grad-treatment" cx="35%" cy="35%"><stop offset="0%" stopColor="#F5C040"/><stop offset="100%" stopColor="#8F600A"/></radialGradient> </defs> <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}> {edges.map((e, i) => { const s = byId[e.source], t = byId[e.target]; if(!s||!t) return null; const dimmed = connectedIds && !(connectedIds.has(e.source) && connectedIds.has(e.target)); const highlighted = connectedIds && connectedIds.has(e.source) && connectedIds.has(e.target); return <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} className={`kg-edge ${dimmed ? 'dimmed' : ''} ${highlighted ? 'highlighted' : ''}`} strokeWidth={Math.min(1 + (e.weight||1)*0.5, 3)} />; })} {positions.map(n => { const c = ENTITY_COLORS[n.type] || ENTITY_COLORS.condition; const isPatient = n.type === 'patient'; const dimmed = connectedIds && !connectedIds.has(n.id); const labelText = n.label.length > 18 ? n.label.slice(0, 17) + '…' : n.label; const textWidth = labelText.length * 5.5; return ( <g key={n.id} transform={`translate(${n.x}, ${n.y})`} className={`kg-node-group ${dimmed ? 'dimmed' : ''}`} onMouseEnter={() => setHoveredNode(n.id)} onMouseLeave={() => setHoveredNode(null)}> <circle r={n.radius + 8} fill="transparent" /> <circle r={n.radius} fill={c.gradId} stroke={c.ring} strokeWidth={isPatient ? 2 : 1.5} /> {isPatient ? <text className="node-label-inside" fontSize="11" y={1}>{labelText}</text> : <> <rect x={-textWidth/2 - 4} y={n.radius + 4} width={textWidth + 8} height={16} className="node-label-bg" rx={4} /> <text className="node-label-below" fontSize="9" y={n.radius + 15}>{labelText}</text> </>} </g> ); })} </g> </svg> {hoveredNode && ( <div className="kg-tooltip visible" style={{top: '20px', left: '20px'}}> <div className="tt-name">{byId[hoveredNode]?.label}</div> <div className="tt-type" style={{background: ENTITY_COLORS[byId[hoveredNode]?.type]?.fill + '22', color: ENTITY_COLORS[byId[hoveredNode]?.type]?.fill}}> {ENTITY_LABELS[byId[hoveredNode]?.type]} </div> <div className="tt-conn-label">Connections</div> <div className="tt-conn-list"> {edges.filter(e => e.source === hoveredNode || e.target === hoveredNode).map(e => { const connId = e.source === hoveredNode ? e.target : e.source; return <div key={connId}>• {byId[connId]?.label}</div>; })} </div> </div> )} </div> );
+  const [positions, setPositions] = useState(null);
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const width = 800, height = 450;
+
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const laid = runForceLayout(nodes, edges, width, height);
+    setPositions(laid);
+  }, [nodes, edges]);
+
+  if (!positions) return null; 
+  const byId = Object.fromEntries(positions.map((n) => [n.id, n])); 
+  const connectedIds = hoveredNode ? new Set(edges.filter(e => e.source === hoveredNode || e.target === hoveredNode).flatMap(e => [e.source, e.target])) : null;
+
+  return ( 
+    <div className="kg-canvas-wrap" style={{position:'relative'}}> 
+      <svg viewBox={`0 0 ${width} ${height}`} className="kg-svg" style={{cursor: 'default'}}> 
+        <defs> 
+          <radialGradient id="grad-patient" cx="35%" cy="35%"><stop offset="0%" stopColor="#12A598"/><stop offset="100%" stopColor="#0A5F5E"/></radialGradient> 
+          <radialGradient id="grad-condition" cx="35%" cy="35%"><stop offset="0%" stopColor="#E84057"/><stop offset="100%" stopColor="#9C2F28"/></radialGradient> 
+          <radialGradient id="grad-test" cx="35%" cy="35%"><stop offset="0%" stopColor="#22A8D1"/><stop offset="100%" stopColor="#0A5F5E"/></radialGradient> 
+          <radialGradient id="grad-treatment" cx="35%" cy="35%"><stop offset="0%" stopColor="#F5C040"/><stop offset="100%" stopColor="#8F600A"/></radialGradient> 
+        </defs> 
+        <g> 
+          {edges.map((e, i) => { const s = byId[e.source], t = byId[e.target]; if(!s||!t) return null; const dimmed = connectedIds && !(connectedIds.has(e.source) && connectedIds.has(e.target)); const highlighted = connectedIds && connectedIds.has(e.source) && connectedIds.has(e.target); return <line key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y} className={`kg-edge ${dimmed ? 'dimmed' : ''} ${highlighted ? 'highlighted' : ''}`} strokeWidth={Math.min(1 + (e.weight||1)*0.5, 3)} />; })}
+          {positions.map(n => { const c = ENTITY_COLORS[n.type] || ENTITY_COLORS.condition; const isPatient = n.type === 'patient'; const dimmed = connectedIds && !connectedIds.has(n.id); const labelText = n.label.length > 18 ? n.label.slice(0, 17) + '…' : n.label; const textWidth = labelText.length * 5.5; return ( <g key={n.id} transform={`translate(${n.x}, ${n.y})`} className={`kg-node-group ${dimmed ? 'dimmed' : ''}`} onMouseEnter={() => setHoveredNode(n.id)} onMouseLeave={() => setHoveredNode(null)}> <circle r={n.radius + 8} fill="transparent" /> <circle r={n.radius} fill={c.gradId} stroke={c.ring} strokeWidth={isPatient ? 2 : 1.5} /> {isPatient ? <text className="node-label-inside" fontSize="11" y={1}>{labelText}</text> : <> <rect x={-textWidth/2 - 4} y={n.radius + 4} width={textWidth + 8} height={16} className="node-label-bg" rx={4} /> <text className="node-label-below" fontSize="9" y={n.radius + 15}>{labelText}</text> </>} </g> ); })} 
+        </g> 
+      </svg> 
+      {hoveredNode && ( <div className="kg-tooltip visible" style={{top: '20px', left: '20px'}}> <div className="tt-name">{byId[hoveredNode]?.label}</div> <div className="tt-type" style={{background: ENTITY_COLORS[byId[hoveredNode]?.type]?.fill + '22', color: ENTITY_COLORS[byId[hoveredNode]?.type]?.fill}}> {ENTITY_LABELS[byId[hoveredNode]?.type]} </div> <div className="tt-conn-label">Connections</div> <div className="tt-conn-list"> {edges.filter(e => e.source === hoveredNode || e.target === hoveredNode).map(e => { const connId = e.source === hoveredNode ? e.target : e.source; return <div key={connId}>• {byId[connId]?.label}</div>; })} </div> </div> )} 
+    </div> 
+  );
 }
 
 function KnowledgeGraphLegend() { return <div className="kg-legend">{Object.entries(ENTITY_LABELS).map(([type, label]) => <div key={type} className="kg-legend-item"><span className="kg-legend-dot" style={{background: ENTITY_COLORS[type].fill}}></span>{label}</div>)}</div>; }
@@ -261,10 +278,30 @@ function ReportHistoryCard({ report }) {
 /* -------------------------------- Patient Detail -------------------------------- */
 function PatientDetail({ patientId, onBack }) {
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
   const [showHealthTwin, setShowHealthTwin] = useState(false);
 
-  useEffect(() => { fetchPatientReports(patientId).then(setData).catch(console.error); }, [patientId]);
+  useEffect(() => { 
+    setData(null); 
+    setError(null);
+    fetchPatientReports(patientId)
+      .then(setData)
+      .catch(err => setError(err.message)); 
+  }, [patientId]);
   
+  // Error state: Jab backend band ho ya PDF upload ki wajah se block ho
+  if (error) {
+    return (
+      <div>
+        <div className="action-row"><button className="btn-outline" onClick={onBack}>← All patients</button></div>
+        <p className="empty-note" style={{color: "var(--coral)", marginTop: "40px"}}>
+          Could not load patient profile. Error: {error}. <br/>
+          Please check if the FastAPI server is running or not busy processing another request.
+        </p>
+      </div>
+    );
+  }
+
   if (!data) return <p className="empty-note">Loading patient profile...</p>;
   
   const riskTier = data.patient?.latest_risk_tier || data.reports?.[0]?.risk_tier || "moderate";
@@ -312,6 +349,16 @@ function PatientDetail({ patientId, onBack }) {
               <p className="prose-text">{riskTier === 'low' ? "Patient is stable." : "Risks can decrease by 20% if medication adherence is strict."}</p>
             </div>
           </div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'16px'}}>
+             <div className="finding-card">
+               <div className="finding-head"><div className="finding-icon">{ICONS.diagnosis}</div><div className="finding-label">Active Conditions</div></div>
+               <ul className="check-list">{data.reports.map((r, i) => <li key={i}><span className="check-mark">&#10003;</span><span>{r.diagnosis || "Not specified"}</span></li>)}</ul>
+             </div>
+             <div className="finding-card">
+               <div className="finding-head"><div className="finding-icon">{ICONS.treatment}</div><div className="finding-label">Suggested Treatments</div></div>
+               <ul className="check-list">{data.reports.flatMap(r => r.treatment_suggestions || []).slice(0, 5).map((t, i) => <li key={i}><span className="check-mark">&#10003;</span><span>{t}</span></li>)}</ul>
+             </div>
+          </div>
         </div>
       )}
 
@@ -331,7 +378,7 @@ function PatientDetail({ patientId, onBack }) {
   );
 }
 
-function PatientsTab() {
+function PatientsTab({ globalPatients }) {
   const [selectedId, setSelectedId] = useState(null);
   if (selectedId) return <PatientDetail patientId={selectedId} onBack={() => setSelectedId(null)} />;
   return (
@@ -339,52 +386,44 @@ function PatientsTab() {
       <p className="hero-eyebrow">Care Hub</p>
       <h1 className="hero-title">Patients</h1>
       <p className="hero-sub">Every analyzed report is saved here, grouped by patient.</p>
-      <div style={{marginTop: '24px', maxWidth: '600px', margin: '24px auto 0'}}><PatientsList onSelect={setSelectedId} /></div>
+      <div style={{marginTop: '24px', maxWidth: '600px', margin: '24px auto 0'}}><PatientsList patients={globalPatients} onSelect={setSelectedId} /></div>
     </div>
   );
 }
 
-/* -------------------------------- AI ASSISTANT TAB (Merged Coach & Advisor) -------------------------------- */
-/* -------------------------------- AI ASSISTANT TAB (Merged Coach & Advisor) -------------------------------- */
-function AIAssistantTab() {
-  const [patients, setPatients] = useState(null);
+/* -------------------------------- AI ASSISTANT TAB -------------------------------- */
+function AIAssistantTab({ globalPatients }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientData, setPatientData] = useState(null);
 
-  // Chat States
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState([{ sender: "bot", text: "Hello! I am your AI Assistant. Select a patient to get personalized health guidance and clinical advice." }]);
+  const [chatMessages, setChatMessages] = useState([{ sender: "bot", text: "Hello Doctor! I am your AI Assistant. Select a patient to get personalized health guidance." }]);
   const [isChatLoading, setIsChatLoading] = useState(false);
-
-  useEffect(() => { fetchPatients().then(setPatients).catch(console.error); }, []);
 
   const loadPatient = async (patient) => {
     setSelectedPatient(patient);
     try {
       const data = await fetchPatientReports(patient.id);
       setPatientData(data);
-      setChatMessages(prev => [...prev, { sender: "bot", text: `Profile loaded for ${patient.name}. You can ask me anything about their health or symptoms below!` }]);
-    } catch (err) {
-      console.error(err);
-    }
+      setChatMessages(prev => [...prev, { sender: "bot", text: `Profile loaded for ${patient.name}. You can ask me anything about their health below!` }]);
+    } catch (err) { alert("Error loading patient: " + err.message); }
   };
 
-  // Chat Handler
-    const handleChatSend = async () => {
+  const handleChatSend = async () => {
     if(!chatInput.trim() || isChatLoading) return;
     const userMsg = chatInput;
     setChatInput("");
     setChatMessages(prev => [...prev, { sender: "user", text: userMsg }, { sender: "bot", text: "Analyzing..." }]);
     setIsChatLoading(true);
 
-    // Patient ka context tayaar karna backend ke liye
+    const riskTier = selectedPatient.latest_risk_tier || "moderate";
     const patientContext = `Patient: ${selectedPatient.name}, Risk: ${riskTier}, Diagnoses: ${patientData?.reports?.map(r => r.diagnosis).join('; ')}, Treatments: ${patientData?.reports?.flatMap(r => r.treatment_suggestions).join('; ')}`;
 
     try {
       const res = await fetch("http://127.0.0.1:8000/symptom-checker/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, context: patientContext }) // Context bhej diya
+        body: JSON.stringify({ message: userMsg, context: patientContext })
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.detail || "API Error");
@@ -394,7 +433,6 @@ function AIAssistantTab() {
     } finally { setIsChatLoading(false); }
   };
 
-  // If no patient selected, show list
   if (!selectedPatient) {
     return (
       <div className="hero">
@@ -402,48 +440,41 @@ function AIAssistantTab() {
         <h1 className="hero-title">Digital Coach & Clinical Advisor</h1>
         <p className="hero-sub">Select a patient to get personalized diet plans, lifestyle guidance, and medical advice.</p>
         <div style={{marginTop: '24px', maxWidth: '600px', margin: '24px auto 0'}}>
-          {!patients ? <p className="empty-note">Loading...</p> : patients.map(p => (
-            <button key={p.id} className="patient-row" onClick={() => loadPatient(p)}>
-              <div><div className="patient-row-name">{p.name}</div><div className="patient-row-meta">Age {p.age}</div></div>
-            </button>
-          ))}
+          {!globalPatients ? (
+            <p className="empty-note">Loading...</p>
+          ) : globalPatients.length === 0 ? (
+            <p className="empty-note">No patients yet. Analyze a report first.</p>
+          ) : (
+            globalPatients.map(p => (
+              <button key={p.id} className="patient-row" onClick={() => loadPatient(p)}>
+                <div><div className="patient-row-name">{p.name}</div><div className="patient-row-meta">Age {p.age}</div></div>
+              </button>
+            ))
+          )}
         </div>
       </div>
     );
   }
 
-  // SMART DYNAMIC COACH LOGIC
   const riskTier = selectedPatient.latest_risk_tier || "moderate";
-  
-  // 1. Poori report ka text ek string mein jodna for smart scanning
-  const allText = patientData?.reports?.map(r => 
-    `${r.diagnosis || ''} ${(r.treatment_suggestions || []).join(' ')} ${(r.recommended_tests || []).join(' ')}`
-  ).join(' ').toLowerCase() || '';
+  const allText = patientData?.reports?.map(r => `${r.diagnosis || ''} ${(r.treatment_suggestions || []).join(' ')} ${(r.recommended_tests || []).join(' ')}`).join(' ').toLowerCase() || '';
 
-  // 2. Keywords se conditions detect karna
   const hasDiabetes = allText.includes('diabetes') || allText.includes('hba1c') || allText.includes('sugar') || allText.includes('glucose');
   const hasThyroid = allText.includes('thyroid') || allText.includes('hypothyroid') || allText.includes('tsh') || allText.includes('t3') || allText.includes('t4');
   const hasCardiac = allText.includes('blood pressure') || allText.includes('hypertension') || allText.includes('cardiac') || allText.includes('cholesterol') || allText.includes('lipid');
-  const hasKidney = allText.includes('kidney') || allText.includes('creatinine') || allText.includes('bun') || allText.includes('microalbuminuria');
-  const hasVitaminDef = allText.includes('vitamin d') || allText.includes('vitamin b12') || allText.includes('deficien');
 
-  // 3. Dynamic Advice Generation
   let dietAdvice = "Maintain a balanced diet rich in vegetables and lean proteins. Stay hydrated.";
-  if (hasDiabetes) dietAdvice = "Strict low-carb and low-sugar diet is crucial. Monitor HbA1c levels. Focus on whole grains and fibrous vegetables.";
-  if (hasCardiac) dietAdvice = "Low sodium (salt) diet is essential to control blood pressure. Avoid fried and processed foods.";
-  if (hasKidney) dietAdvice = "Monitor protein and salt intake to support kidney function. Stay well-hydrated, but follow doctor's fluid limits.";
-  if (hasVitaminDef) dietAdvice += " Include sunlight exposure and foods fortified with Vitamin D and B12.";
-  if (riskTier === 'high') dietAdvice += " Strict dietary discipline is critical due to elevated risk.";
+  if (hasDiabetes) dietAdvice = "Strict low-carb and low-sugar diet is crucial. Monitor HbA1c levels.";
+  if (hasCardiac) dietAdvice = "Low sodium (salt) diet is essential to control blood pressure. Avoid fried foods.";
+  if (riskTier === 'high') dietAdvice += " Strict dietary discipline is critical.";
 
-  let exerciseAdvice = "30 minutes of moderate cardio (like brisk walking) daily is recommended.";
-  if (hasThyroid) exerciseAdvice = "Light to moderate exercise. Avoid extreme fatigue until thyroid levels stabilize with medication.";
-  if (hasCardiac) exerciseAdvice = "Moderate walking is good, but avoid heavy weightlifting or extreme cardio without cardiological clearance.";
-  if (hasDiabetes) exerciseAdvice = "Regular post-meal walks are highly effective. Consistency is more important than intensity.";
-  if (riskTier === 'high') exerciseAdvice += " Consult your doctor before starting any new rigorous routine.";
+  let exerciseAdvice = "30 minutes of moderate cardio daily is recommended.";
+  if (hasThyroid) exerciseAdvice = "Light to moderate exercise. Avoid extreme fatigue until thyroid levels stabilize.";
+  if (hasCardiac) exerciseAdvice = "Moderate walking is good, but avoid heavy weightlifting without clearance.";
 
-  let sleepAdvice = "Aim for 7-8 hours of consistent sleep nightly. Maintain a regular sleep schedule.";
-  if (hasThyroid) sleepAdvice = "Thyroid imbalances can cause fatigue. Prioritize 8+ hours of quality sleep and consider short naps if needed.";
-  if (riskTier === 'high') sleepAdvice = "Prioritize 8+ hours of sleep. Stress management and proper rest are critical for recovery.";
+  let sleepAdvice = "Aim for 7-8 hours of consistent sleep nightly.";
+  if (hasThyroid) sleepAdvice = "Thyroid imbalances can cause fatigue. Prioritize 8+ hours of quality sleep.";
+  if (riskTier === 'high') sleepAdvice = "Prioritize 8+ hours of sleep. Stress management is critical.";
 
   return (
     <div>
@@ -456,7 +487,6 @@ function AIAssistantTab() {
         <div style={{fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px'}}>Based on their medical history and risk level</div>
       </div>
 
-      {/* Digital Coach Section */}
       <h3 style={{fontSize: "16px", margin: "20px 0 12px", fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)"}}>Digital Health Coach</h3>
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px', marginBottom: '32px'}}>
         <div className="finding-card highlight">
@@ -473,7 +503,6 @@ function AIAssistantTab() {
         </div>
       </div>
 
-      {/* Clinical Advisor Section */}
       <h3 style={{fontSize: "16px", margin: "20px 0 12px", fontFamily: "Space Grotesk, sans-serif", color: "var(--accent)"}}>AI Clinical Advisor</h3>
       <div className="finding-card highlight">
         <div className="chat-container">
@@ -492,16 +521,60 @@ function AIAssistantTab() {
   );
 }
 
-/* ---------------------------------- App ---------------------------------- */
+/* ---------------------------------- App (Global State) ---------------------------------- */
 export default function App() {
   const [tab, setTab] = useState("analyze");
+  
+  // Global Patient State
+  const [globalPatients, setGlobalPatients] = useState(null);
+
+  // Global Upload State (Persists on tab switch!)
+  const [analysisStatus, setAnalysisStatus] = useState("idle");
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisFilename, setAnalysisFilename] = useState("");
+
+  // Fetch patients only once when the app starts
+  useEffect(() => {
+    fetchPatients()
+      .then(setGlobalPatients)
+      .catch(err => console.error("Failed to load patients on mount:", err));
+  }, []);
+
+  // Function to refresh patients (called after a new PDF is uploaded)
+  const refreshPatients = useCallback(() => {
+    fetchPatients()
+      .then(setGlobalPatients)
+      .catch(err => console.error("Failed to refresh patients:", err));
+  }, []);
+
+  // Handle File Upload
+  const handleUpload = useCallback(async (file) => {
+    setAnalysisStatus("uploading");
+    setAnalysisFilename(file.name);
+    try {
+      const data = await uploadAndSave(file);
+      setAnalysisResult(data);
+      setAnalysisStatus("done");
+      refreshPatients(); // Refresh patient list after successful upload
+    } catch (err) {
+      alert("Upload Error: " + err.message);
+      setAnalysisStatus("idle");
+    }
+  }, [refreshPatients]);
+
+  // Reset Upload State
+  const handleResetAnalysis = () => {
+    setAnalysisStatus("idle");
+    setAnalysisResult(null);
+    setAnalysisFilename("");
+  };
 
   const renderTab = () => {
     switch(tab) {
-      case "analyze": return <AnalyzeTab />;
-      case "patients": return <PatientsTab />;
-      case "assistant": return <AIAssistantTab />;
-      default: return <AnalyzeTab />;
+      case "analyze": return <AnalyzeTab status={analysisStatus} result={analysisResult} filename={analysisFilename} onUpload={handleUpload} onReset={handleResetAnalysis} />;
+      case "patients": return <PatientsTab globalPatients={globalPatients} />;
+      case "assistant": return <AIAssistantTab globalPatients={globalPatients} />;
+      default: return <AnalyzeTab status={analysisStatus} result={analysisResult} filename={analysisFilename} onUpload={handleUpload} onReset={handleResetAnalysis} />;
     }
   }
 
