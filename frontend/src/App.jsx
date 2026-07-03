@@ -113,7 +113,7 @@ function UploadZone({ onFile, busy }) {
         {busy ? (
           <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
             <p className="upload-title" style={{color: "var(--accent)"}}>Analyzing & saving…</p>
-            <p className="upload-sub" style={{marginTop: '4px'}}>Processing document... Large files may take up to 60 seconds.</p>
+            <p className="upload-sub" style={{marginTop: '4px'}}>Processing your document... Please wait while we analyze your report.</p>
           </div>
         ) : (
           <><p className="upload-title">Upload a lab report</p><p className="upload-sub">PDF, JPG or PNG · Automatically saved to Care Hub</p></>
@@ -173,7 +173,7 @@ function AnalyzeTab({ status, result, filename, onUpload, onReset }) {
     return (
       <div className="hero">
         <p className="hero-eyebrow">Patient report tool</p>
-        <h1 className="hero-title">Understand your lab results in plain language</h1>
+        <h1 className="hero-title">Understand your lab results in simple language</h1>
         <p className="hero-sub">Upload a report and get a structured breakdown. Saved automatically to the patient's history.</p>
         <UploadZone onFile={onUpload} busy={status === "uploading"} />
         <div className="trust-row"><span>&#10003; Processed locally</span><span>&#10003; Saved to Care Hub</span><span>&#10003; PDF & image support</span></div>
@@ -217,7 +217,7 @@ function DecisionPanel({ patientId }) {
     <div className="finding-card highlight">
       <div className="finding-head"><div className="finding-icon">{ICONS.trend}</div><div className="finding-label">Decision Intelligence</div>{data?.decision?.overall_risk_trend && <TrendBadge trend={data.decision.overall_risk_trend} />}</div>
       {state === "idle" && <div><p className="prose-text">Synthesize full history into one recommendation.</p><button className="btn-primary" style={{marginTop:"10px"}} onClick={generate}>Generate summary</button></div>}
-      {state === "loading" && <p className="empty-note">Synthesizing history... this can take up to 30 seconds.</p>}
+      {state === "loading" && <p className="empty-note">Synthesizing patient history... Please wait.</p>}
       {state === "done" && data && <div><p className="prose-text">{data.decision.summary}</p>{data.decision.key_concerns?.length > 0 && <><div style={{fontWeight:600, marginTop:"10px"}}>Key concerns</div><ListBlock items={data.decision.key_concerns} /></>} {data.decision.priority_actions?.length > 0 && <><div style={{fontWeight:600, marginTop:"10px"}}>Priority actions</div><ListBlock items={data.decision.priority_actions} /></>}</div>}
     </div>
   );
