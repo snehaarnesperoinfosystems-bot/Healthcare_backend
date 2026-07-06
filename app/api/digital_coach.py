@@ -14,7 +14,7 @@ class CoachRequest(BaseModel):
     patient_id: int
 
 def _generate_dynamic_advice(diagnosis: str, risk_assessment: str, recommended_tests: str,
-                              treatment_suggestions: str, risk_tier: str, age: int, sex: str) -> dict:
+                              treatment_suggestions: str, risk_tier: str, age, sex: str) -> dict:
     """
     Yeh function patient ki PURI report (diagnosis, risk assessment, recommended tests,
     treatment suggestions) ko study karke uske liye personalized
@@ -28,7 +28,7 @@ def _generate_dynamic_advice(diagnosis: str, risk_assessment: str, recommended_t
     }
 
     # Puri report ka text ek jagah combine karo taaki poora context mile,
-    # sirf diagnosis field tak seemित na rahe
+    # sirf diagnosis field tak seemit na rahe
     full_text = " ".join(filter(None, [
         diagnosis, risk_assessment, recommended_tests, treatment_suggestions
     ])).lower()
@@ -67,7 +67,13 @@ def _generate_dynamic_advice(diagnosis: str, risk_assessment: str, recommended_t
         diet_notes.append("Moderate protein and sodium intake; stay well hydrated unless advised otherwise by your doctor.")
 
     # 6. Age-based adjustment (Elderly care)
-    if age and age > 60:
+    # FIX: Age ko safely integer me convert kar rahe hain taaki string se compare karne par error na aaye
+    try:
+        age_int = int(age) if age is not None else 0
+    except (ValueError, TypeError):
+        age_int = 0
+
+    if age_int > 60:
         exercise_notes.append("Focus on light yoga and balance exercises to reduce fall risk.")
 
     # 7. Overall risk tier
