@@ -6,7 +6,8 @@ DATABASE_URL = "sqlite:///./healthcare.db"
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}  # needed for SQLite + FastAPI
+    # 🟢 Added timeout=30 to handle concurrent writes without locking errors
+    connect_args={"check_same_thread": False, "timeout": 30}  
 )
 
 # WAL mode: reads won't block while a write is in progress

@@ -12,6 +12,7 @@ async function uploadAndSave(file) {
   const res = await fetch(`${API_BASE}/care-hub/save`, { method: "POST", body: formData });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Analysis failed");
+  data.uploadedFilename = file.name; 
   return data;
 }
 
@@ -88,24 +89,31 @@ const ICONS = {
 /* -------------------------------- Top bar -------------------------------- */
 function TopBar({ tab, onTabChange, darkMode, setDarkMode }) {
   return (
-    <header className="topbar">
-      <div className="topbar-brand">
-        <span className="brand-cross" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2 L10 18 M2 10 L18 10" stroke="white" strokeWidth="3.4" strokeLinecap="round"/></svg>
-        </span>
-        <div>
-          <div className="brand-name">Spero</div>
-          <div className="brand-tag">Healthcare OS</div>
-        </div>
+    <header className="topbar" style={{ flexDirection: 'column', gap: '12px', paddingBottom: '12px' }}>
+      <div style={{ width: '100%', textAlign: 'center', fontSize: '22px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'Space Grotesk, sans-serif', paddingTop: '5px' }}>
+        Clinical Decision Support System (CDSS)
       </div>
-      <nav className="tab-nav" role="tablist">
-        <button className={`tab-btn ${tab === "analyze" ? "active" : ""}`} onClick={() => onTabChange("analyze")}>Analyze</button>
-        <button className={`tab-btn ${tab === "patients" ? "active" : ""}`} onClick={() => onTabChange("patients")}>Patients</button>
-        <button className={`tab-btn ${tab === "assistant" ? "active" : ""}`} onClick={() => onTabChange("assistant")}>AI Assistant</button>
-      </nav>
-      <button className="btn-outline" onClick={() => setDarkMode(!darkMode)} style={{marginLeft: '20px'}}>
-        {darkMode ? "☀️ Light" : "🌙 Dark"}
-      </button>
+      
+      <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="topbar-brand">
+          <span className="brand-cross" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2 L10 18 M2 10 L18 10" stroke="white" strokeWidth="3.4" strokeLinecap="round"/></svg>
+          </span>
+          <div>
+            <div className="brand-name">Spero</div>
+            <div className="brand-tag">Healthcare OS</div>
+          </div>
+        </div>
+        <nav className="tab-nav" role="tablist">
+          <button className={`tab-btn ${tab === "analyze" ? "active" : ""}`} onClick={() => onTabChange("analyze")}>Analyze</button>
+          <button className={`tab-btn ${tab === "patients" ? "active" : ""}`} onClick={() => onTabChange("patients")}>Patients</button>
+          <button className={`tab-btn ${tab === "assistant" ? "active" : ""}`} onClick={() => onTabChange("assistant")}>AI Assistant</button>
+          <button className={`tab-btn ${tab === "wellness" ? "active" : ""}`} onClick={() => onTabChange("wellness")}>Mental Wellness</button>
+        </nav>
+        <button className="btn-outline" onClick={() => setDarkMode(!darkMode)} style={{marginLeft: '20px'}}>
+          {darkMode ? "☀️ Light" : "🌙 Dark"}
+        </button>
+      </div>
     </header>
   );
 }
@@ -114,7 +122,7 @@ function TopBar({ tab, onTabChange, darkMode, setDarkMode }) {
 function UploadZone({ onFile, busy }) {
   const inputRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); const file = e.dataTransfer.files?.[0]; if (file) onFile(file); };
+  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); const files = e.dataTransfer.files; if (files.length > 0) onFile(files); };
 
   return (
     <div className={`upload-zone ${isDragOver ? "drag-over" : ""} ${busy ? "busy" : ""}`}
@@ -123,15 +131,15 @@ function UploadZone({ onFile, busy }) {
       onDrop={handleDrop}
       onClick={() => !busy && inputRef.current?.click()}
     >
-      <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} hidden disabled={busy} />
+      <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(e) => { const files = e.target.files; if (files.length > 0) onFile(files); }} hidden disabled={busy} />
       <div className={`upload-icon-wrap ${busy ? "pulse" : ""}`}>
         {busy ? (
           <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
             <p className="upload-title" style={{color: "var(--accent)"}}>Analyzing & saving…</p>
-            <p className="upload-sub" style={{marginTop: '4px'}}>Processing your document... Please wait while we analyze your report.</p>
+            <p className="upload-sub" style={{marginTop: '4px'}}>Processing your documents... Please wait while we analyze your reports.</p>
           </div>
         ) : (
-          <><p className="upload-title">Upload a lab report</p><p className="upload-sub">PDF, JPG or PNG · Automatically saved to Care Hub</p></>
+          <><p className="upload-title">Upload lab report(s)</p><p className="upload-sub">PDF, JPG or PNG · Select multiple files at once · Automatically saved to Care Hub</p></>
         )}
       </div>
     </div>
@@ -164,17 +172,16 @@ function PatientBand({ summary, filename, riskTier }) {
   );
 }
 
-function ResultsView({ result, filename, onReset }) {
+function ResultsView({ result }) {
   const { analysis, risk_tier } = result;
   return (
     <div>
-      <div className="action-row"><div className="status-pill"><span className="status-dot"></span>Saved to Care Hub</div><button className="btn-outline" onClick={onReset}>Analyze another</button></div>
-      <PatientBand summary={analysis.patient_summary} filename={filename} riskTier={risk_tier} />
+      <PatientBand summary={analysis.patient_summary} filename={result.uploadedFilename || "Report"} riskTier={risk_tier} />
       <div className="findings-grid">
-        <FindingCard icon={ICONS.diagnosis} label="Diagnosis" highlight><p className="prose-text">{analysis.diagnosis || "Not specified."}</p></FindingCard>
+        <FindingCard icon={ICONS.diagnosis} label="Report Findings Summary" highlight><p className="prose-text">{analysis.diagnosis || "Not specified."}</p></FindingCard>
         <FindingCard icon={ICONS.risk} label="Risk assessment"><p className="prose-text">{analysis.risk_assessment || "Not specified."}</p></FindingCard>
         <FindingCard icon={ICONS.tests} label="Recommended tests"><ListBlock items={analysis.recommended_tests} /></FindingCard>
-        <FindingCard icon={ICONS.treatment} label="Treatment suggestions"><ListBlock items={analysis.treatment_suggestions} /></FindingCard>
+        <FindingCard icon={ICONS.treatment} label="Possible Management Considerations"><ListBlock items={analysis.treatment_suggestions} /></FindingCard>
         <FindingCard icon={ICONS.precautions} label="Precautions"><ListBlock items={analysis.precautions} /></FindingCard>
       </div>
       <p style={{fontSize:"11px", color:"var(--text-muted)", marginTop:"16px"}}>{analysis.disclaimer || "For informational purposes only."}</p>
@@ -182,7 +189,7 @@ function ResultsView({ result, filename, onReset }) {
   );
 }
 
-function AnalyzeTab({ status, result, filename, onUpload, onReset }) {
+function AnalyzeTab({ status, results, onUpload, onReset }) {
   if (status === "idle" || status === "uploading") {
     return (
       <div className="hero">
@@ -194,7 +201,24 @@ function AnalyzeTab({ status, result, filename, onUpload, onReset }) {
       </div>
     );
   }
-  return <ResultsView result={result} filename={filename} onReset={onReset} />;
+  
+  return (
+    <div>
+      <div className="action-row" style={{marginBottom: '24px'}}>
+        <div className="status-pill"><span className="status-dot"></span>{results.length} Report(s) Saved to Care Hub</div>
+        <button className="btn-outline" onClick={onReset}>Analyze another</button>
+      </div>
+      
+      {results.map((res, i) => (
+        <div key={i} style={{marginBottom: '20px'}}>
+           <ResultsView result={res} />
+           {results.length > 1 && i < results.length - 1 && (
+             <hr style={{border: '0', borderTop: '1px solid var(--border-light)', margin: '32px 0'}} />
+           )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* -------------------------------- Patients tab -------------------------------- */
@@ -292,13 +316,32 @@ function KnowledgeGraphPanel({ patientId }) {
   const [graph, setGraph] = useState(null);
   useEffect(() => { fetchPatientGraph(patientId).then(setGraph).catch(console.error); }, [patientId]);
   if (!graph) return <p className="empty-note">Loading graph...</p>;
-  if (!graph.edges || graph.edges.length === 0) return <p className="empty-note">No connected entities yet.</p>;
+  if (!Array.isArray(graph.nodes) || !Array.isArray(graph.edges) || graph.edges.length === 0) return <p className="empty-note">No connected entities yet.</p>;
   return <><p className="prose-text" style={{marginBottom:'14px'}}>Conditions, tests, and treatments extracted across this patient's reports.</p><KnowledgeGraphCanvas nodes={graph.nodes} edges={graph.edges} /><KnowledgeGraphLegend /></>;
 }
 
 function ReportHistoryCard({ report }) {
   const [expanded, setExpanded] = useState(false);
-  return ( <div className="finding-card" style={{marginBottom: '8px'}}> <button onClick={() => setExpanded(v => !v)} style={{width:'100%', background:'none', border:'none', color:'var(--text-primary)', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', font:'inherit'}}> <div style={{textAlign:'left'}}><div style={{fontWeight:600, fontSize:'13px'}}>{report.filename}</div><div style={{fontSize:"11px", color:"var(--text-muted)"}}>{new Date(report.created_at).toLocaleDateString()}</div></div> <RiskBadge tier={report.risk_tier} /> </button> {expanded && <div style={{marginTop:'12px'}}><FindingCard icon={ICONS.diagnosis} label="Diagnosis"><p className="prose-text">{report.diagnosis || "Not specified."}</p></FindingCard></div>} </div> );
+  return ( 
+    <div className="finding-card" style={{marginBottom: '8px'}}> 
+      <button onClick={() => setExpanded(v => !v)} style={{width:'100%', background:'none', border:'none', color:'var(--text-primary)', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', font:'inherit'}}> 
+        <div style={{textAlign:'left'}}>
+          <div style={{fontWeight:600, fontSize:'13px'}}>{report?.filename || "Unknown file"}</div>
+          <div style={{fontSize:"11px", color:"var(--text-muted)"}}>{report?.created_at ? new Date(report.created_at).toLocaleDateString() : "N/A"}</div>
+        </div> 
+        <RiskBadge tier={report?.risk_tier} /> 
+      </button> 
+      {expanded && (
+        <div className="findings-grid" style={{marginTop:'12px'}}>
+          <FindingCard icon={ICONS.diagnosis} label="Report Findings Summary" highlight><p className="prose-text">{report?.diagnosis || "Not specified."}</p></FindingCard>
+          <FindingCard icon={ICONS.risk} label="Risk assessment"><p className="prose-text">{report?.risk_assessment || "Not specified."}</p></FindingCard>
+          <FindingCard icon={ICONS.tests} label="Recommended tests"><ListBlock items={report?.recommended_tests} /></FindingCard>
+          <FindingCard icon={ICONS.treatment} label="Possible Management Considerations"><ListBlock items={report?.treatment_suggestions} /></FindingCard>
+          <FindingCard icon={ICONS.precautions} label="Precautions"><ListBlock items={report?.precautions} /></FindingCard>
+        </div>
+      )} 
+    </div> 
+  );
 }
 
 /* -------------------------------- Patient Detail -------------------------------- */
@@ -329,17 +372,20 @@ function PatientDetail({ patientId, onBack }) {
 
   if (!data) return <p className="empty-note">Loading patient profile...</p>;
   
-  const riskTier = data.patient?.latest_risk_tier || data.reports?.[0]?.risk_tier || "moderate";
+  const reports = Array.isArray(data.reports) ? data.reports : [];
+  const patientInfo = data.patient || {};
+
+  const riskTier = patientInfo.latest_risk_tier || reports?.[0]?.risk_tier || "moderate";
   const healthScore = riskTier === "low" ? "92 / 100" : riskTier === "moderate" ? "68 / 100" : "35 / 100";
   const healthColor = riskTier === "low" ? 'var(--accent)' : riskTier === "moderate" ? 'var(--amber)' : 'var(--coral)';
-  const patientName = data.patient?.name || "Unknown Patient";
+  const patientName = patientInfo.name || "Unknown Patient";
   const initials = patientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  const lastReport = data.reports && data.reports.length > 0 ? data.reports[0] : null;
-  const lastVisit = lastReport ? new Date(lastReport.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : "N/A";
+  const lastReport = reports.length > 0 ? reports[0] : null;
+  const lastVisit = lastReport?.created_at ? new Date(lastReport.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : "N/A";
 
-  const chartData = data.reports.slice().reverse().map(r => ({
-    date: new Date(r.created_at).toLocaleDateString(),
-    Risk: r.risk_tier === 'high' ? 30 : r.risk_tier === 'moderate' ? 60 : 90
+  const chartData = reports.slice().reverse().map(r => ({
+    date: r?.created_at ? new Date(r.created_at).toLocaleDateString() : "N/A",
+    Risk: r?.risk_tier === 'high' ? 30 : r?.risk_tier === 'moderate' ? 60 : 90
   }));
 
   return (
@@ -352,9 +398,9 @@ function PatientDetail({ patientId, onBack }) {
           <div className="profile-name">{patientName}</div>
           <div className="profile-mrn">MRN: PAT-{patientId.toString().padStart(5, '0')} · Care Hub Record</div>
           <div className="profile-stats">
-            <div className="profile-stat-item"><span className="profile-stat-label">Age / Sex</span><span className="profile-stat-value">{data.patient?.age || 'N/A'} / {data.patient?.sex || 'N/A'}</span></div>
+            <div className="profile-stat-item"><span className="profile-stat-label">Age / Sex</span><span className="profile-stat-value">{patientInfo.age || 'N/A'} / {patientInfo.sex || 'N/A'}</span></div>
             <div className="profile-stat-item"><span className="profile-stat-label">Last Visit</span><span className="profile-stat-value">{lastVisit}</span></div>
-            <div className="profile-stat-item"><span className="profile-stat-label">Total Reports</span><span className="profile-stat-value">{data.reports?.length || 0}</span></div>
+            <div className="profile-stat-item"><span className="profile-stat-label">Total Reports</span><span className="profile-stat-value">{reports.length}</span></div>
             <div className="profile-stat-item"><span className="profile-stat-label">Risk Level</span><span className="profile-stat-value"><RiskBadge tier={riskTier} /></span></div>
           </div>
         </div>
@@ -372,7 +418,7 @@ function PatientDetail({ patientId, onBack }) {
             <div className="finding-card highlight">
               <div className="finding-head"><div className="finding-icon">{ICONS.risk}</div><div className="finding-label">Overall Health Score</div></div>
               <div className="metric-large" style={{color: healthColor}}>{healthScore}</div>
-              <div className="metric-sub">Calculated via AI based on past {data.reports?.length || 0} reports</div>
+              <div className="metric-sub">Calculated via AI based on past {reports.length} reports</div>
             </div>
             <div className="finding-card">
               <div className="finding-head"><div className="finding-icon">{ICONS.trend}</div><div className="finding-label">Future Outlook</div></div>
@@ -382,11 +428,11 @@ function PatientDetail({ patientId, onBack }) {
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'16px'}}>
              <div className="finding-card">
                <div className="finding-head"><div className="finding-icon">{ICONS.diagnosis}</div><div className="finding-label">Active Conditions</div></div>
-               <ul className="check-list">{data.reports.map((r, i) => <li key={i}><span className="check-mark">&#10003;</span><span>{r.diagnosis || "Not specified"}</span></li>)}</ul>
+               <ul className="check-list">{reports.map((r, i) => <li key={i}><span className="check-mark">&#10003;</span><span>{r?.diagnosis || "Not specified"}</span></li>)}</ul>
              </div>
              <div className="finding-card">
                <div className="finding-head"><div className="finding-icon">{ICONS.treatment}</div><div className="finding-label">Suggested Treatments</div></div>
-               <ul className="check-list">{data.reports.flatMap(r => r.treatment_suggestions || []).slice(0, 5).map((t, i) => <li key={i}><span className="check-mark">&#10003;</span><span>{t}</span></li>)}</ul>
+               <ul className="check-list">{reports.flatMap(r => r?.treatment_suggestions || []).slice(0, 5).map((t, i) => <li key={i}><span className="check-mark">&#10003;</span><span>{t}</span></li>)}</ul>
              </div>
           </div>
         </div>
@@ -422,7 +468,7 @@ function PatientDetail({ patientId, onBack }) {
 
       <div style={{marginTop: '20px'}}>
         <h3 style={{fontSize: "16px", marginBottom:'10px', fontFamily: "Space Grotesk, sans-serif"}}>Report History</h3>
-        {data.reports && data.reports.map(r => <ReportHistoryCard key={r.id} report={r} />)}
+        {reports.length > 0 ? reports.map(r => <ReportHistoryCard key={r?.id || Math.random()} report={r} />) : <p className="empty-note">No reports found for this patient.</p>}
       </div>
     </div>
   );
@@ -496,7 +542,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
     }
   };
 
-  // 🟢 handleChatSend me AI se JSON response handle karna
   const handleChatSend = async (customMsg = null) => {
     const msgToSend = customMsg || chatInput; 
     if(!msgToSend.trim() || isChatLoading) return;
@@ -510,7 +555,7 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
     const patientContext = `Patient: ${selectedPatient.name}, Risk: ${riskTier}, Diagnoses: ${patientData?.reports?.map(r => r.diagnosis).join('; ')}, Treatments: ${patientData?.reports?.flatMap(r => r.treatment_suggestions).join('; ')}`;
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/symptom-checker/chat", {
+      const res = await fetch(`${API_BASE}/symptom-checker/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg, context: patientContext })
@@ -518,7 +563,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.detail || "API Error");
       
-      // 🟢 AI ka response update karna (Text, Follow-up, Lab Table)
       setChatMessages(prev => { 
         const newMsgs = [...prev]; 
         newMsgs[newMsgs.length - 1] = {
@@ -613,130 +657,34 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
   const hasCardiac = allText.includes('blood pressure') || allText.includes('hypertension') || allText.includes('cardiac') || allText.includes('cholesterol') || allText.includes('lipid');
 
   let dietAdvice = "Maintain a balanced diet rich in vegetables and lean proteins. Stay hydrated.";
-  let dietDetails = `**🌅 Morning Routine**
-- Warm water with lemon
-- Oatmeal with fresh fruits
-
-**☀️ Afternoon Routine**
-- Balanced meal with lean protein (chicken/fish/tofu)
-- Fresh green salad
-
-**🌙 Night Routine**
-- Light dinner (soup or steamed veggies)
-- Avoid heavy carbs before sleep
-
-**💧 Hydration**
-- Drink 2-3 liters of water daily`;
+  let dietDetails = `**🌅 Morning Routine**\n- Warm water with lemon\n- Oatmeal with fresh fruits\n\n**☀️ Afternoon Routine**\n- Balanced meal with lean protein (chicken/fish/tofu)\n- Fresh green salad\n\n**🌙 Night Routine**\n- Light dinner (soup or steamed veggies)\n- Avoid heavy carbs before sleep\n\n**💧 Hydration**\n- Drink 2-3 liters of water daily`;
 
   let exerciseAdvice = "30 minutes of moderate cardio daily is recommended.";
-  let exerciseDetails = `**🏃 Recommended Exercises**
-- Brisk Walking
-- Light Jogging
-
-**📺 Video Guides**
-- [Watch: Brisk Walking Guide](https://www.youtube.com/watch?v=3Ka7B3hCg08)
-- [Watch: Beginner Cardio Workout](https://www.youtube.com/watch?v=ml6cT4AZdqI)`;
+  let exerciseDetails = `**🏃 Recommended Exercises**\n- Brisk Walking\n- Light Jogging\n\n**📺 Video Guides**\n- [Watch: Brisk Walking Guide](https://www.youtube.com/watch?v=3Ka7B3hCg08)\n- [Watch: Beginner Cardio Workout](https://www.youtube.com/watch?v=ml6cT4AZdqI)`;
 
   let sleepAdvice = "Aim for 7-8 hours of consistent sleep nightly.";
-  let sleepDetails = `**🌙 Pre-Sleep Routine (1 Hour Before Bed)**
-- Dim the room lights
-- Avoid screens (Mobile/TV) to reduce blue light
-- Drink a cup of chamomile tea
-
-**🛏️ Sleep Environment**
-- Keep room temperature cool (around 20-22°C)
-- Ensure complete darkness (use blackout curtains)
-
-**☀️ Morning Wake-Up**
-- Get 10 mins of morning sunlight
-- Stick to a consistent wake-up time daily`;
+  let sleepDetails = `**🌙 Pre-Sleep Routine (1 Hour Before Bed)**\n- Dim the room lights\n- Avoid screens (Mobile/TV) to reduce blue light\n- Drink a cup of chamomile tea\n\n**🛏️ Sleep Environment**\n- Keep room temperature cool (around 20-22°C)\n- Ensure complete darkness (use blackout curtains)\n\n**☀️ Morning Wake-Up**\n- Get 10 mins of morning sunlight\n- Stick to a consistent wake-up time daily`;
 
   if (hasDiabetes) {
     dietAdvice = "Strict low-carb and low-sugar diet is crucial. Monitor HbA1c levels.";
-    dietDetails = `**🌅 Morning Routine**
-- Warm water with soaked fenugreek seeds
-- Oatmeal or dalia (no sugar)
-
-**☀️ Afternoon Routine**
-- 1-2 Multigrain roti
-- Green leafy vegetables
-- Grilled chicken or paneer
-
-**🌙 Night Routine**
-- Light dinner before 8 PM
-- Salad or clear soup
-
-**🚫 Strictly Avoid**
-- Refined sugar, sugary drinks, white bread, pastries`;
-    exerciseDetails = `**🏃 Recommended Exercises**
-- Post-meal brisk walking (most important)
-- Cycling
-
-**📺 Video Guides**
-- [Watch: Walking Exercise for Diabetes](https://www.youtube.com/results?search_query=walking+exercise+for+diabetes)
-- [Watch: Yoga for Diabetes](https://www.youtube.com/results?search_query=yoga+for+diabetes)`;
+    dietDetails = `**🌅 Morning Routine**\n- Warm water with soaked fenugreek seeds\n- Oatmeal or dalia (no sugar)\n\n**☀️ Afternoon Routine**\n- 1-2 Multigrain roti\n- Green leafy vegetables\n- Grilled chicken or paneer\n\n**🌙 Night Routine**\n- Light dinner before 8 PM\n- Salad or clear soup\n\n**🚫 Strictly Avoid**\n- Refined sugar, sugary drinks, white bread, pastries`;
+    exerciseDetails = `**🏃 Recommended Exercises**\n- Post-meal brisk walking (most important)\n- Cycling\n\n**📺 Video Guides**\n- [Watch: Walking Exercise for Diabetes](https://www.youtube.com/results?search_query=walking+exercise+for+diabetes)\n- [Watch: Yoga for Diabetes](https://www.youtube.com/results?search_query=yoga+for+diabetes)`;
   }
   if (hasCardiac) {
     dietAdvice = "Low sodium (DASH-style diet) is essential. Avoid fried foods.";
-    dietDetails = `**🌅 Morning Routine**
-- Fresh fruits (Banana, Apple)
-- A handful of walnuts
-
-**☀️ Afternoon Routine**
-- Grilled fish or chicken
-- Boiled vegetables (Spinach, Carrots)
-- Very low salt intake
-
-**🌙 Night Routine**
-- Steamed vegetables
-- Light soup
-
-**🚫 Strictly Avoid**
-- Pickles, papads, processed meats, deep-fried foods`;
-    exerciseDetails = `**🏃 Recommended Exercises**
-- Moderate walking
-- Light swimming
-
-**📺 Video Guides**
-- [Watch: Safe Exercises for Heart Patients](https://www.youtube.com/results?search_query=safe+exercises+for+heart+patients)
-- [Watch: Breathing Exercises for Heart](https://www.youtube.com/results?search_query=breathing+exercises+for+heart)`;
+    dietDetails = `**🌅 Morning Routine**\n- Fresh fruits (Banana, Apple)\n- A handful of walnuts\n\n**☀️ Afternoon Routine**\n- Grilled fish or chicken\n- Boiled vegetables (Spinach, Carrots)\n- Very low salt intake\n\n**🌙 Night Routine**\n- Steamed vegetables\n- Light soup\n\n**🚫 Strictly Avoid**\n- Pickles, papads, processed meats, deep-fried foods`;
+    exerciseDetails = `**🏃 Recommended Exercises**\n- Moderate walking\n- Light swimming\n\n**📺 Video Guides**\n- [Watch: Safe Exercises for Heart Patients](https://www.youtube.com/results?search_query=safe+exercises+for+heart+patients)\n- [Watch: Breathing Exercises for Heart](https://www.youtube.com/results?search_query=breathing+exercises+for+heart)`;
   }
   if (hasThyroid) {
     exerciseAdvice = "Light to moderate exercise. Avoid extreme fatigue.";
-    exerciseDetails = `**🏃 Recommended Exercises**
-- Light Yoga
-- Stretching
-
-**📺 Video Guides**
-- [Watch: Yoga for Thyroid Relief](https://www.youtube.com/results?search_query=yoga+for+thyroid+relief)
-- [Watch: Thyroid Workout Routine](https://www.youtube.com/results?search_query=thyroid+exercise+routine)`;
+    exerciseDetails = `**🏃 Recommended Exercises**\n- Light Yoga\n- Stretching\n\n**📺 Video Guides**\n- [Watch: Yoga for Thyroid Relief](https://www.youtube.com/results?search_query=yoga+for+thyroid+relief)\n- [Watch: Thyroid Workout Routine](https://www.youtube.com/results?search_query=thyroid+exercise+routine)`;
     sleepAdvice = "Thyroid imbalances can cause fatigue. Prioritize 8+ hours of quality sleep.";
-    sleepDetails = `**🌙 Pre-Sleep Routine**
-- Take a warm shower before bed
-- Read a relaxing book
-
-**🛏️ Sleep Environment**
-- Use a humidifier if feeling dry
-- Keep room cool and quiet
-
-**☀️ Morning Wake-Up**
-- Light stretching in bed
-- Do not snooze the alarm`;
+    sleepDetails = `**🌙 Pre-Sleep Routine**\n- Take a warm shower before bed\n- Read a relaxing book\n\n**🛏️ Sleep Environment**\n- Use a humidifier if feeling dry\n- Keep room cool and quiet\n\n**☀️ Morning Wake-Up**\n- Light stretching in bed\n- Do not snooze the alarm`;
   }
   if (riskTier === 'high') {
     dietAdvice += " Strict dietary discipline is critical.";
     sleepAdvice = "Prioritize 8+ hours of sleep. Stress management is critical.";
-    sleepDetails = `**🌙 Pre-Sleep Routine**
-- Practice deep breathing (4-7-8 method)
-- Listen to calming music
-
-**🛏️ Sleep Environment**
-- Use a white noise machine
-- Aromatherapy (Lavender oil)
-
-**☀️ Morning Wake-Up**
-- 5 mins of meditation
-- Avoid checking phone immediately`;
+    sleepDetails = `**🌙 Pre-Sleep Routine**\n- Practice deep breathing (4-7-8 method)\n- Listen to calming music\n\n**🛏️ Sleep Environment**\n- Use a white noise machine\n- Aromatherapy (Lavender oil)\n\n**☀️ Morning Wake-Up**\n- 5 mins of meditation\n- Avoid checking phone immediately`;
   }
 
   const handlePrintPlan = () => {
@@ -808,7 +756,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
       ) : (
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px', marginBottom: '32px'}}>
           
-          {/* DIET CARD */}
           <div className="finding-card highlight" style={{cursor: 'pointer'}} onClick={() => setShowDietDetails(!showDietDetails)}>
             <div className="finding-head">
               <div className="finding-icon">{ICONS.treatment}</div>
@@ -825,7 +772,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
             </div>
           </div>
 
-          {/* SLEEP CARD */}
           <div className="finding-card" style={{cursor: 'pointer'}} onClick={() => setShowSleepDetails(!showSleepDetails)}>
             <div className="finding-head">
               <div className="finding-icon">{ICONS.precautions}</div>
@@ -842,7 +788,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
             </div>
           </div>
 
-          {/* EXERCISE CARD */}
           <div className="finding-card" style={{cursor: 'pointer'}} onClick={() => setShowExDetails(!showExDetails)}>
             <div className="finding-head">
               <div className="finding-icon">{ICONS.trend}</div>
@@ -867,14 +812,12 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
         <div className="chat-container" ref={chatContainerRef} style={{ maxHeight: '400px', overflowY: 'auto' }}>
           {chatMessages.map((msg, i) => (
             <div key={i} className={`chat-msg ${msg.sender}`}>
-              {/* AI Text Reply */}
               {msg.sender === 'bot' ? (
                 <ReactMarkdown>{msg.text}</ReactMarkdown>
               ) : (
                 msg.text.split('\n').map((line, idx) => <span key={idx}>{line}<br/></span>)
               )}
 
-                         {/* 🟢 Follow-up Badge (Non-clickable) */}
               {msg.followUp && (
                 <div style={{ 
                   marginTop: '12px', 
@@ -891,7 +834,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
                 </div>
               )}
 
-              {/* 🟢 Color-Coded Lab Values Table */}
               {msg.labTable && msg.labTable.length > 0 && (
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px', fontSize: '13px' }}>
                   <thead>
@@ -937,7 +879,6 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
         <div className="chat-input-row" style={{ display: 'flex', gap: '8px' }}>
           <input className="chat-input" placeholder="Ask about symptoms or conditions..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key==='Enter' && handleChatSend()} disabled={isChatLoading} style={{flex: 1}}/>
           
-          {/* Mic Button (Doctor's Voice Input) */}
           <button 
             className={`btn-outline ${isListening ? 'mic-active' : ''}`} 
             onClick={handleVoiceInput} 
@@ -957,6 +898,192 @@ function AIAssistantTab({ globalPatients, onPatientsUpdate }) {
   );
 }
 
+/* -------------------------------- Mental Wellness Tab -------------------------------- */
+function WellnessTab() {
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    { sender: "assistant", text: "Doctor, I am ready. Select a prompt below to begin the assessment." }
+  ]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const initialDoctorPrompts = [
+    "Patient reports feeling constantly stressed.",
+    "Patient has trouble sleeping due to anxiety.",
+    "Patient expresses feelings of hopelessness.",
+    "Patient appears agitated and restless."
+  ];
+
+  const chatContainerRef = useRef(null);
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  const handleChatSend = async (customMsg = null, displayText = null) => {
+    const msgToSend = customMsg || chatInput; 
+    if(!msgToSend.trim() || isChatLoading) return;
+    
+    const userMsg = msgToSend;
+    setChatInput(""); 
+    setChatMessages(prev => [...prev, { sender: "doctor", text: displayText || userMsg }, { sender: "assistant", text: "Analyzing..." }]);
+    setIsChatLoading(true);
+
+    const contextHistory = chatMessages.map(m => `${m.sender === 'doctor' ? 'Doctor' : 'Assistant'}: ${m.text}`).join('\n');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/wellness/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg, context: contextHistory })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.detail || "API Error");
+      
+      setChatMessages(prev => { 
+        const newMsgs = [...prev]; 
+        newMsgs[newMsgs.length - 1] = {
+          sender: "assistant",
+          text: resData.recommendation || "No reply.",
+          mood: resData.detected_mood,
+          stress: resData.stress_level,
+          suggestions: resData.suggested_replies || []
+        }; 
+        return newMsgs; 
+      });
+
+    } catch (err) {
+      setChatMessages(prev => { const newMsgs = [...prev]; newMsgs[newMsgs.length - 1].text = "Could not connect to the AI backend."; return newMsgs; });
+    } finally { setIsChatLoading(false); }
+  };
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        finalTranscript += event.results[i][0].transcript;
+      }
+      setChatInput(finalTranscript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+    setIsListening(true);
+    recognitionRef.current = recognition;
+  };
+
+  const lastAssistantMsg = [...chatMessages].reverse().find(m => m.sender === 'assistant');
+  const dynamicButtons = lastAssistantMsg?.suggestions || [];
+  const hasStarted = chatMessages.length > 1;
+
+  return (
+    <div className="hero">
+      <p className="hero-eyebrow">Doctor's Clinical Tool</p>
+      <h1 className="hero-title">Patient Mental Wellness Check</h1>
+      <p className="hero-sub">Continuous chat assessment. Click the suggested replies to quickly answer the AI's questions.</p>
+      
+      <div className="finding-card highlight" style={{ maxWidth: "700px", margin: "24px auto 0" }}>
+        
+        <div className="chat-container" ref={chatContainerRef} style={{ minHeight: '300px', maxHeight: '400px', overflowY: 'auto', marginBottom: '15px' }}>
+          {chatMessages.map((msg, i) => (
+            <div key={i} className={`chat-msg ${msg.sender === 'doctor' ? 'user' : 'bot'}`}>
+              {msg.sender === 'assistant' && msg.mood && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '11px', background: 'rgba(14, 124, 123, 0.1)', color: 'var(--accent)', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+                    Mood: {msg.mood}
+                  </span>
+                  <span style={{ fontSize: '11px', background: msg.stress === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 192, 64, 0.1)', color: msg.stress === 'High' ? 'var(--coral)' : 'var(--amber)', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+                    Stress: {msg.stress}
+                  </span>
+                </div>
+              )}
+              <ReactMarkdown>{msg.text}</ReactMarkdown>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid var(--border-light)' }}>
+          {!hasStarted && initialDoctorPrompts.map((q, i) => (
+            <button 
+              key={i} 
+              className="btn-outline" 
+              style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }} 
+              onClick={() => handleChatSend(q)} 
+              disabled={isChatLoading}
+            >
+              {q}
+            </button>
+          ))}
+          
+          {hasStarted && dynamicButtons.length > 0 && dynamicButtons.map((q, i) => (
+            <button 
+              key={i} 
+              className="btn-outline" 
+              style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, background: 'rgba(14, 124, 123, 0.05)', borderColor: 'var(--accent)', color: 'var(--accent)' }} 
+              onClick={() => handleChatSend(q)} 
+              disabled={isChatLoading}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
+        <div className="chat-input-row" style={{ display: "flex", gap: "8px" }}>
+          <input 
+            className="chat-input" 
+            placeholder="Ask a follow-up question or type patient response..." 
+            value={chatInput} 
+            onChange={(e) => setChatInput(e.target.value)} 
+            onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
+            disabled={isChatLoading}
+            style={{ flex: 1 }}
+          />
+          <button 
+            className={`btn-outline ${isListening ? "mic-active" : ""}`} 
+            onClick={handleVoiceInput} 
+            disabled={isChatLoading}
+            style={{ minWidth: "45px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            title="Speak"
+          >
+            {isListening ? "🔴" : "🎤"}
+          </button>
+          
+          {hasStarted && (
+            <button 
+              className="btn-outline" 
+              style={{ flexShrink: 0, padding: "8px 12px", fontSize: "13px", cursor: "pointer", borderColor: "var(--amber)", color: "var(--amber)" }} 
+              onClick={() => handleChatSend("generate final summary", "✨ Generate Final Summary")} 
+              disabled={isChatLoading}
+            >
+              ✨ Summary
+            </button>
+          )}
+
+          <button className="btn-primary" onClick={() => handleChatSend()} disabled={isChatLoading}>
+            {isChatLoading ? "Analyzing..." : "Send"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------------------------- App (Global State) ---------------------------------- */
 export default function App() {
   const [tab, setTab] = useState("analyze");
@@ -964,28 +1091,40 @@ export default function App() {
   
   const [globalPatients, setGlobalPatients] = useState(null);
   const [analysisStatus, setAnalysisStatus] = useState("idle");
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [analysisFilename, setAnalysisFilename] = useState("");
+  const [analysisResults, setAnalysisResults] = useState([]);
 
   useEffect(() => {
     fetchPatients()
       .then(setGlobalPatients)
-      .catch(err => console.error("Failed to load patients on mount:", err));
+      .catch(err => {
+        console.error("Failed to load patients on mount:", err);
+        setGlobalPatients([]);
+      });
   }, []);
 
   const refreshPatients = useCallback(() => {
     fetchPatients()
       .then(setGlobalPatients)
-      .catch(err => console.error("Failed to refresh patients:", err));
+      .catch(err => {
+        console.error("Failed to refresh patients:", err);
+        setGlobalPatients([]);
+      });
   }, []);
 
-  const handleUpload = useCallback(async (file) => {
+  const handleUpload = useCallback(async (files) => {
     setAnalysisStatus("uploading");
-    setAnalysisFilename(file.name);
+    
+    const uploadPromises = Array.from(files).map(file => uploadAndSave(file));
+    
     try {
-      const data = await uploadAndSave(file);
-      setAnalysisResult(data);
+      const results = await Promise.all(uploadPromises);
+      setAnalysisResults(results);
       setAnalysisStatus("done");
+      
+      if (results.some(r => r.status === "duplicate_skipped")) {
+        alert("ℹ️ Duplicate Report: Some selected reports were already saved in the database. AI analysis is shown, but duplicates were not saved again.");
+      }
+      
       refreshPatients(); 
     } catch (err) {
       alert("Upload Error: " + err.message);
@@ -995,23 +1134,44 @@ export default function App() {
 
   const handleResetAnalysis = () => {
     setAnalysisStatus("idle");
-    setAnalysisResult(null);
-    setAnalysisFilename("");
+    setAnalysisResults([]);
   };
 
   const renderTab = () => {
     switch(tab) {
-      case "analyze": return <AnalyzeTab status={analysisStatus} result={analysisResult} filename={analysisFilename} onUpload={handleUpload} onReset={handleResetAnalysis} />;
+      case "analyze": return <AnalyzeTab status={analysisStatus} results={analysisResults} onUpload={handleUpload} onReset={handleResetAnalysis} />;
       case "patients": return <PatientsTab globalPatients={globalPatients} />;
       case "assistant": return <AIAssistantTab globalPatients={globalPatients} onPatientsUpdate={setGlobalPatients} />;
-      default: return <AnalyzeTab status={analysisStatus} result={analysisResult} filename={analysisFilename} onUpload={handleUpload} onReset={handleResetAnalysis} />;
+      case "wellness": return <WellnessTab />;
+      default: return <AnalyzeTab status={analysisStatus} results={analysisResults} onUpload={handleUpload} onReset={handleResetAnalysis} />;
     }
   }
 
   return (
     <div className={darkMode ? "dark-mode" : ""} style={{minHeight:'100vh', display:'flex', flexDirection:'column', background:'var(--bg-base)'}}>
       <TopBar tab={tab} onTabChange={setTab} darkMode={darkMode} setDarkMode={setDarkMode} />
-      <main className="app-main">{renderTab()}</main>
+      
+      <main className="app-main" style={{flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '24px 16px', paddingBottom: '40px'}}>
+        {renderTab()}
+      </main>
+      
+      <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 16px 20px 16px', boxSizing: 'border-box' }}>
+        <div style={{ 
+          padding: "15px", 
+          background: "rgba(245, 192, 64, 0.1)", 
+          border: "1px solid var(--amber)", 
+          borderRadius: "8px", 
+          color: "var(--amber)", 
+          fontSize: "13px", 
+          fontWeight: "600", 
+          textAlign: "center",
+          lineHeight: "1.5",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+        }}>
+          The following are potential treatment considerations based on the reported findings and should be reviewed by the appropriate treating clinician or specialist. Final diagnosis, treatment recommendations, and clinical decisions remain the responsibility of the healthcare provider.
+        </div>
+      </div>
+
       <footer className="app-footer">Spero is a support tool, not a substitute for professional medical advice.</footer>
     </div>
   );

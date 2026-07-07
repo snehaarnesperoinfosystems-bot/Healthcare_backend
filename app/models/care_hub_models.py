@@ -26,6 +26,10 @@ class Report(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
 
     filename = Column(String, nullable=False)
+    
+    # 🟢 ADDED: File hash for duplicate prevention
+    file_hash = Column(String, index=True, nullable=True) 
+    
     sample_date = Column(String, nullable=True)
 
     diagnosis = Column(Text, nullable=True)
