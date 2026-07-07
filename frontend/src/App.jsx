@@ -907,32 +907,34 @@ function WellnessTab() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
-
+ 
   const initialDoctorPrompts = [
     "Patient reports feeling constantly stressed.",
     "Patient has trouble sleeping due to anxiety.",
     "Patient expresses feelings of hopelessness.",
     "Patient appears agitated and restless."
   ];
-
+ 
   const chatContainerRef = useRef(null);
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatMessages]);
-
-  const handleChatSend = async (customMsg = null, displayText = null) => {
-    const msgToSend = customMsg || chatInput; 
+ 
+  const handleChatSend = async (customMsg = null) => {
+    const msgToSend = customMsg || chatInput;
     if(!msgToSend.trim() || isChatLoading) return;
-    
+   
     const userMsg = msgToSend;
-    setChatInput(""); 
-    setChatMessages(prev => [...prev, { sender: "doctor", text: displayText || userMsg }, { sender: "assistant", text: "Analyzing..." }]);
+    setChatInput("");
+    setChatMessages(prev => [...prev, { sender: "doctor", text: userMsg }, { sender: "assistant", text: "Analyzing..." }]);
     setIsChatLoading(true);
-
-    const contextHistory = chatMessages.map(m => `${m.sender === 'doctor' ? 'Doctor' : 'Assistant'}: ${m.text}`).join('\n');
-
+ 
+    // Increased memory to last 8 messages so it doesn't repeat questions
+    const recentMessages = chatMessages.slice(-8);
+    const contextHistory = recentMessages.map(m => `${m.sender === 'doctor' ? 'Doctor' : 'Assistant'}: ${m.text}`).join('\n');
+ 
     try {
       const res = await fetch(`${API_BASE}/api/wellness/analyze`, {
         method: "POST",
@@ -941,24 +943,25 @@ function WellnessTab() {
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.detail || "API Error");
-      
-      setChatMessages(prev => { 
-        const newMsgs = [...prev]; 
+     
+      setChatMessages(prev => {
+        const newMsgs = [...prev];
         newMsgs[newMsgs.length - 1] = {
           sender: "assistant",
           text: resData.recommendation || "No reply.",
           mood: resData.detected_mood,
           stress: resData.stress_level,
-          suggestions: resData.suggested_replies || []
-        }; 
-        return newMsgs; 
+          suggestions: resData.suggested_replies || [],
+          isSummary: userMsg === "Generate Final Summary" // Mark as summary if requested
+        };
+        return newMsgs;
       });
-
+ 
     } catch (err) {
       setChatMessages(prev => { const newMsgs = [...prev]; newMsgs[newMsgs.length - 1].text = "Could not connect to the AI backend."; return newMsgs; });
     } finally { setIsChatLoading(false); }
   };
-
+ 
   const handleVoiceInput = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -987,28 +990,60 @@ function WellnessTab() {
     setIsListening(true);
     recognitionRef.current = recognition;
   };
-
+ 
+  const handlePrintSummary = () => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Mental Wellness Assessment</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+            h1 { color: #0E7C7B; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+            .msg { margin-bottom: 15px; padding: 10px; border-radius: 8px; }
+            .doctor { background: #f0f0f0; }
+            .assistant { background: #e6f7f6; border-left: 4px solid #0E7C7B; }
+            .label { font-weight: bold; font-size: 12px; text-transform: uppercase; color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Mental Wellness Assessment Report</h1>
+          ${chatMessages.map(m => `
+            <div class="msg ${m.sender === 'doctor' ? 'doctor' : 'assistant'}">
+              <div class="label">${m.sender === 'doctor' ? 'Doctor' : 'AI Assistant'}</div>
+              ${m.text}
+            </div>
+          `).join('')}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+ 
   const lastAssistantMsg = [...chatMessages].reverse().find(m => m.sender === 'assistant');
   const dynamicButtons = lastAssistantMsg?.suggestions || [];
   const hasStarted = chatMessages.length > 1;
-
+  const hasSummary = lastAssistantMsg?.isSummary;
+ 
   return (
     <div className="hero">
       <p className="hero-eyebrow">Doctor's Clinical Tool</p>
       <h1 className="hero-title">Patient Mental Wellness Check</h1>
       <p className="hero-sub">Continuous chat assessment. Click the suggested replies to quickly answer the AI's questions.</p>
-      
+     
       <div className="finding-card highlight" style={{ maxWidth: "700px", margin: "24px auto 0" }}>
-        
-        <div className="chat-container" ref={chatContainerRef} style={{ minHeight: '300px', maxHeight: '400px', overflowY: 'auto', marginBottom: '15px' }}>
+       
+<div className="chat-container" ref={chatContainerRef} style={{ minHeight: '300px', maxHeight: '400px', overflowY: 'auto', marginBottom: '15px' }}>
           {chatMessages.map((msg, i) => (
             <div key={i} className={`chat-msg ${msg.sender === 'doctor' ? 'user' : 'bot'}`}>
-              {msg.sender === 'assistant' && msg.mood && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '11px', background: 'rgba(14, 124, 123, 0.1)', color: 'var(--accent)', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+              {/* ONLY SHOW BADGES ON THE FINAL SUMMARY */}
+              {msg.sender === 'assistant' && msg.isSummary && msg.mood && (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '11px', background: 'rgba(14, 124, 123, 0.1)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
                     Mood: {msg.mood}
                   </span>
-                  <span style={{ fontSize: '11px', background: msg.stress === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 192, 64, 0.1)', color: msg.stress === 'High' ? 'var(--coral)' : 'var(--amber)', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+                  <span style={{ fontSize: '11px', background: msg.stress === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 192, 64, 0.1)', color: msg.stress === 'High' ? 'var(--coral)' : 'var(--amber)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
                     Stress: {msg.stress}
                   </span>
                 </div>
@@ -1017,67 +1052,85 @@ function WellnessTab() {
             </div>
           ))}
         </div>
-
+ 
+        {/* Dynamic or Initial Buttons */}
         <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid var(--border-light)' }}>
           {!hasStarted && initialDoctorPrompts.map((q, i) => (
-            <button 
-              key={i} 
-              className="btn-outline" 
-              style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }} 
-              onClick={() => handleChatSend(q)} 
+            <button
+              key={i}
+              className="btn-outline"
+              style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+              onClick={() => handleChatSend(q)}
               disabled={isChatLoading}
             >
               {q}
             </button>
           ))}
-          
+         
           {hasStarted && dynamicButtons.length > 0 && dynamicButtons.map((q, i) => (
-            <button 
-              key={i} 
-              className="btn-outline" 
-              style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, background: 'rgba(14, 124, 123, 0.05)', borderColor: 'var(--accent)', color: 'var(--accent)' }} 
-              onClick={() => handleChatSend(q)} 
+            <button
+              key={i}
+              className="btn-outline"
+              style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, background: 'rgba(14, 124, 123, 0.05)', borderColor: 'var(--accent)', color: 'var(--accent)' }}
+              onClick={() => handleChatSend(q)}
               disabled={isChatLoading}
             >
               {q}
             </button>
           ))}
         </div>
-
+ 
+        {/* Input Area (Bottom) */}
         <div className="chat-input-row" style={{ display: "flex", gap: "8px" }}>
-          <input 
-            className="chat-input" 
-            placeholder="Ask a follow-up question or type patient response..." 
-            value={chatInput} 
-            onChange={(e) => setChatInput(e.target.value)} 
+          <input
+            className="chat-input"
+            placeholder="Ask a follow-up question or type patient response..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
             disabled={isChatLoading}
             style={{ flex: 1 }}
           />
-          <button 
-            className={`btn-outline ${isListening ? "mic-active" : ""}`} 
-            onClick={handleVoiceInput} 
+          <button
+            className={`btn-outline ${isListening ? "mic-active" : ""}`}
+            onClick={handleVoiceInput}
             disabled={isChatLoading}
             style={{ minWidth: "45px", display: "flex", alignItems: "center", justifyContent: "center" }}
             title="Speak"
           >
             {isListening ? "🔴" : "🎤"}
           </button>
-          
-          {hasStarted && (
-            <button 
-              className="btn-outline" 
-              style={{ flexShrink: 0, padding: "8px 12px", fontSize: "13px", cursor: "pointer", borderColor: "var(--amber)", color: "var(--amber)" }} 
-              onClick={() => handleChatSend("generate final summary", "✨ Generate Final Summary")} 
+         
+          {/* Generate Summary Button (Shows after chat starts) */}
+          {hasStarted && !hasSummary && (
+            <button
+              className="btn-outline"
+              onClick={() => handleChatSend("Generate Final Summary")}
               disabled={isChatLoading}
+              style={{ whiteSpace: 'nowrap', borderColor: 'var(--amber)', color: 'var(--amber)' }}
+              title="Get Final Summary"
             >
-              ✨ Summary
+              📝 Summary
             </button>
           )}
-
-          <button className="btn-primary" onClick={() => handleChatSend()} disabled={isChatLoading}>
-            {isChatLoading ? "Analyzing..." : "Send"}
-          </button>
+ 
+          {/* Print Button (Shows only after summary is generated) */}
+          {hasSummary && (
+            <button
+              className="btn-primary"
+              onClick={handlePrintSummary}
+              style={{ whiteSpace: 'nowrap' }}
+              title="Print Assessment"
+            >
+              🖨️ Print
+            </button>
+          )}
+ 
+          {!hasSummary && (
+            <button className="btn-primary" onClick={() => handleChatSend()} disabled={isChatLoading}>
+              {isChatLoading ? "Analyzing..." : "Send"}
+            </button>
+          )}
         </div>
       </div>
     </div>
