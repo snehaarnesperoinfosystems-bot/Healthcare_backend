@@ -12,6 +12,7 @@ import app.models.care_hub_models  # noqa: F401 - registers models before create
 from app.api.symptom_checker import router as symptom_checker_router
 from app.api.digital_coach import router as digital_coach_router
 from app.api.wellness import router as wellness_router
+import app.models.compliance_models
 
 # ✅ Create database tables on startup (SQLite file: healthcare.db)
 Base.metadata.create_all(bind=engine)

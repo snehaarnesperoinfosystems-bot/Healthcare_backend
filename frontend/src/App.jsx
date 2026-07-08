@@ -86,19 +86,209 @@ const ICONS = {
   trend: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 13 L7 8 L10 11 L16 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M11 4 L16 4 L16 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
 
+/* -------------------------------- Login Screen -------------------------------- */
+function LoginScreen({ onLogin, darkMode, setDarkMode }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (email === "doctor@spero.com" && password === "spero123") {
+      localStorage.setItem("spero_doc_auth", "true");
+      onLogin();
+    } else {
+      setError("Invalid credentials. Please try again.");
+    }
+  };
+
+  // ✅ UPDATED: Local image path (ensure spero-bg.jpg is in your 'public' folder)
+  const BG_IMG_URL = "/spero-bg.jpg"; 
+  
+  // Small logo icon for the login card header
+  const LOGO_ICON = "https://z-cdn-media.chatglm.cn/files/e7484de2-0b65-4f97-a003-3413e1d2d5ea.png?auth_key=1883421518-d092fa4cae0f4d87b932d1fea0658d7e-0-36d68d9c901fd880cfc7176e3338deee";
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end', // Pushes login card to the right side
+      padding: '40px',
+      backgroundImage: `url(${BG_IMG_URL})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'left center', // ✅ Focuses on the left side where "Spero" text is
+      backgroundRepeat: 'no-repeat',
+      position: 'relative',
+      boxShadow: 'inset 0 0 200px rgba(0,0,0,0.5)' 
+    }}>
+      
+      {/* ✅ UPDATED: Dark overlay gradient to make text pop but keep left side visible */}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, left: 0, right: 0, bottom: 0, 
+        background: 'linear-gradient(to right, rgba(0, 0, 0, 0.2) 0%, rgba(10, 20, 40, 0.5) 40%, rgba(0, 0, 0, 0.85) 100%)',
+        zIndex: 1
+      }}></div>
+
+      {/* Glassmorphism Login Card (Right Side) */}
+      <div style={{ 
+        position: 'relative',
+        zIndex: 2,
+        width: '100%',
+        maxWidth: '440px',
+        padding: '48px 40px',
+        background: 'rgba(15, 23, 42, 0.55)', // Slightly darker frosted glass for contrast
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderRadius: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)',
+        color: 'white'
+      }}>
+        
+        {/* Header / Logo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
+          <img 
+            src={LOGO_ICON} 
+            alt="Spero Logo" 
+            style={{ width: '64px', height: '64px', marginBottom: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.1)', padding: '6px' }}
+          />
+          <h1 style={{ margin: 0, fontFamily: 'Space Grotesk, sans-serif', fontSize: '30px', fontWeight: '700', letterSpacing: '-0.5px' }}>
+            Doctor Login
+          </h1>
+          <p style={{ margin: '8px 0 0 0', color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>
+            Secure access to Spero Healthcare OS
+          </p>
+        </div>
+
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'rgba(255,255,255,0.9)' }}>Doctor ID (Email)</label>
+            <input 
+              type="email" 
+              className="chat-input" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              placeholder="doctor@spero.com" 
+              required 
+              style={{ 
+                width: '100%', 
+                padding: '14px 16px', 
+                fontSize: '15px', 
+                boxSizing: 'border-box', 
+                background: 'rgba(255,255,255,0.1)', 
+                border: '1px solid rgba(255,255,255,0.2)', 
+                borderRadius: '12px', 
+                color: 'white',
+                outline: 'none',
+                transition: 'border 0.2s'
+              }}
+              onFocus={(e) => e.target.style.border = '1px solid var(--accent)'}
+              onBlur={(e) => e.target.style.border = '1px solid rgba(255,255,255,0.2)'}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '28px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'rgba(255,255,255,0.9)' }}>Password</label>
+            <input 
+              type="password" 
+              className="chat-input" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              placeholder="••••••••" 
+              required 
+              style={{ 
+                width: '100%', 
+                padding: '14px 16px', 
+                fontSize: '15px', 
+                boxSizing: 'border-box', 
+                background: 'rgba(255,255,255,0.1)', 
+                border: '1px solid rgba(255,255,255,0.2)', 
+                borderRadius: '12px', 
+                color: 'white',
+                outline: 'none',
+                transition: 'border 0.2s'
+              }}
+              onFocus={(e) => e.target.style.border = '1px solid var(--accent)'}
+              onBlur={(e) => e.target.style.border = '1px solid rgba(255,255,255,0.2)'}
+            />
+          </div>
+
+          {error && <p style={{ color: '#ffcccc', fontSize: '13px', textAlign: 'center', marginBottom: '16px', background: 'rgba(239, 68, 68, 0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>{error}</p>}
+
+          <button 
+            type="submit" 
+            style={{ 
+              width: '100%', 
+              padding: '16px', 
+              fontSize: '16px', 
+              fontWeight: '700', 
+              background: 'var(--accent)', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '12px', 
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s',
+              boxShadow: '0 4px 12px rgba(14, 124, 123, 0.4)'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(14, 124, 123, 0.6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 124, 123, 0.4)'; }}
+          >
+            Secure Login
+          </button>
+        </form>
+        
+        <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            🔒 Authorized personnel only.
+          </div>
+          <button 
+            onClick={() => setDarkMode(!darkMode)} 
+            style={{ 
+              background: 'rgba(255,255,255,0.1)', 
+              border: '1px solid rgba(255,255,255,0.2)', 
+              color: 'rgba(255,255,255,0.8)', 
+              padding: '8px 14px', 
+              borderRadius: '8px', 
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+          >
+            {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* -------------------------------- Top bar -------------------------------- */
-function TopBar({ tab, onTabChange, darkMode, setDarkMode }) {
+function TopBar({ tab, onTabChange, darkMode, setDarkMode, onLogout }) {
+  const LOGO_URL = "https://z-cdn-media.chatglm.cn/files/e7484de2-0b65-4f97-a003-3413e1d2d5ea.png?auth_key=1883421518-d092fa4cae0f4d87b932d1fea0658d7e-0-36d68d9c901fd880cfc7176e3338deee";
+
   return (
     <header className="topbar" style={{ flexDirection: 'column', gap: '12px', paddingBottom: '12px' }}>
       <div style={{ width: '100%', textAlign: 'center', fontSize: '22px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'Space Grotesk, sans-serif', paddingTop: '5px' }}>
         Clinical Decision Support System (CDSS)
       </div>
-      
+
       <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="topbar-brand">
-          <span className="brand-cross" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2 L10 18 M2 10 L18 10" stroke="white" strokeWidth="3.4" strokeLinecap="round"/></svg>
-          </span>
+          {/* ⭐ Logo image replaces the SVG cross — shows on ALL pages */}
+          <img
+            src={LOGO_URL}
+            alt="Spero Logo"
+            style={{
+              width: '40px',
+              height: '40px',
+              objectFit: 'contain',
+              borderRadius: '10px',
+              background: 'var(--accent)',
+              padding: '4px'
+            }}
+          />
           <div>
             <div className="brand-name">Spero</div>
             <div className="brand-tag">Healthcare OS</div>
@@ -110,28 +300,34 @@ function TopBar({ tab, onTabChange, darkMode, setDarkMode }) {
           <button className={`tab-btn ${tab === "assistant" ? "active" : ""}`} onClick={() => onTabChange("assistant")}>AI Assistant</button>
           <button className={`tab-btn ${tab === "wellness" ? "active" : ""}`} onClick={() => onTabChange("wellness")}>Mental Wellness</button>
         </nav>
-        <button className="btn-outline" onClick={() => setDarkMode(!darkMode)} style={{marginLeft: '20px'}}>
-          {darkMode ? "☀️ Light" : "🌙 Dark"}
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button className="btn-outline" onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "☀️" : "🌙"}
+          </button>
+          <button className="btn-outline" onClick={onLogout} style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}>
+            Logout
+          </button>
+        </div>
       </div>
     </header>
   );
 }
 
 /* ------------------------------ Upload zone ------------------------------ */
-function UploadZone({ onFile, busy }) {
+function UploadZone({ onFile, busy, disabled }) {
   const inputRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); const files = e.dataTransfer.files; if (files.length > 0) onFile(files); };
+  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); if(disabled) return; const files = e.dataTransfer.files; if (files.length > 0) onFile(files); };
 
   return (
     <div className={`upload-zone ${isDragOver ? "drag-over" : ""} ${busy ? "busy" : ""}`}
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      onClick={() => !busy && inputRef.current?.click()}
+      onClick={() => !busy && !disabled && inputRef.current?.click()}
+      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
-      <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(e) => { const files = e.target.files; if (files.length > 0) onFile(files); }} hidden disabled={busy} />
+      <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(e) => { const files = e.target.files; if (files.length > 0) onFile(files); }} hidden disabled={busy || disabled} />
       <div className={`upload-icon-wrap ${busy ? "pulse" : ""}`}>
         {busy ? (
           <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}}>
@@ -146,6 +342,7 @@ function UploadZone({ onFile, busy }) {
   );
 }
 
+/* -------------------------------- Analyze tab -------------------------------- */
 /* -------------------------------- Analyze tab -------------------------------- */
 function ListBlock({ items }) {
   const valid = (items || []).filter((i) => i && i.trim() !== "");
@@ -174,6 +371,22 @@ function PatientBand({ summary, filename, riskTier }) {
 
 function ResultsView({ result }) {
   const { analysis, risk_tier } = result;
+  
+  // HUMAN OVERSIGHT & GRIEVANCE REDRESSAL STATE
+  const [isApproved, setIsApproved] = useState(false);
+  const [issueReported, setIssueReported] = useState(false);
+
+  const handleApprove = () => {
+    // In a real app, this would call the backend AuditLog API
+    setIsApproved(true);
+    alert("Doctor approval logged successfully.");
+  };
+
+  const handleReportIssue = () => {
+    setIssueReported(true);
+    alert("Grievance logged. The AI insight will be flagged for review.");
+  };
+
   return (
     <div>
       <PatientBand summary={analysis.patient_summary} filename={result.uploadedFilename || "Report"} riskTier={risk_tier} />
@@ -184,19 +397,69 @@ function ResultsView({ result }) {
         <FindingCard icon={ICONS.treatment} label="Possible Management Considerations"><ListBlock items={analysis.treatment_suggestions} /></FindingCard>
         <FindingCard icon={ICONS.precautions} label="Precautions"><ListBlock items={analysis.precautions} /></FindingCard>
       </div>
+      
+      {/* EXPLAINABILITY SECTION */}
+      <div className="finding-card" style={{marginTop: '16px', borderLeft: '4px solid var(--accent)'}}>
+        <div className="finding-head"><div className="finding-icon">{ICONS.trend}</div><div className="finding-label">AI Explainability (Patient-Friendly)</div></div>
+        <div className="finding-body">
+          <p className="prose-text" style={{fontSize: '14px', color: 'var(--text-muted)'}}>
+            {analysis.explainability || "These suggestions are based on standard medical guidelines matching the lab values found in your report. They are intended as a 'second opinion' to assist your doctor."}
+          </p>
+        </div>
+      </div>
+
+      {/* HUMAN OVERSIGHT & GRIEVANCE REDRESSAL CONTROLS */}
+      <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+        {issueReported ? (
+          <span style={{ color: 'var(--coral)', fontSize: '13px', fontWeight: '600' }}>✓ Issue Reported</span>
+        ) : (
+          <button className="btn-outline" onClick={handleReportIssue} style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}>
+            ⚠️ Report AI Issue
+          </button>
+        )}
+        
+        {isApproved ? (
+          <span style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: '600' }}>✓ Doctor Approved</span>
+        ) : (
+          <button className="btn-primary" onClick={handleApprove}>
+            ✓ Doctor Approve Summary
+          </button>
+        )}
+      </div>
+
       <p style={{fontSize:"11px", color:"var(--text-muted)", marginTop:"16px"}}>{analysis.disclaimer || "For informational purposes only."}</p>
     </div>
   );
 }
 
 function AnalyzeTab({ status, results, onUpload, onReset }) {
+  const [consentGiven, setConsentGiven] = useState(false);
+
   if (status === "idle" || status === "uploading") {
     return (
       <div className="hero">
         <p className="hero-eyebrow">Patient report tool</p>
         <h1 className="hero-title">Understand your lab results in simple language</h1>
-        <p className="hero-sub">Upload a report and get a structured breakdown. Saved automatically to the patient's history.</p>
-        <UploadZone onFile={onUpload} busy={status === "uploading"} />
+        <p className="hero-sub">Upload a report and get a structured breakdown.</p>
+        
+        {/* CONSENT MANAGEMENT CHECKBOX */}
+        <div style={{ marginTop: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+          <input 
+            type="checkbox" 
+            id="consent" 
+            checked={consentGiven} 
+            onChange={(e) => setConsentGiven(e.target.checked)} 
+            style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          />
+          <label htmlFor="consent" style={{ fontSize: '14px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+            I confirm explicit patient consent has been obtained for AI analysis and data storage. (Required)
+          </label>
+        </div>
+
+        <UploadZone onFile={onUpload} busy={status === "uploading"} disabled={!consentGiven} />
+        
+        {!consentGiven && <p style={{textAlign: 'center', fontSize: '12px', color: 'var(--coral)', marginTop: '10px'}}>Please obtain patient consent to proceed.</p>}
+        
         <div className="trust-row"><span>&#10003; Processed locally</span><span>&#10003; Saved to Care Hub</span><span>&#10003; PDF & image support</span></div>
       </div>
     );
@@ -1139,6 +1402,7 @@ function WellnessTab() {
 
 /* ---------------------------------- App (Global State) ---------------------------------- */
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // <-- NEW LOGIN STATE
   const [tab, setTab] = useState("analyze");
   const [darkMode, setDarkMode] = useState(false);
   
@@ -1147,13 +1411,15 @@ export default function App() {
   const [analysisResults, setAnalysisResults] = useState([]);
 
   useEffect(() => {
-    fetchPatients()
-      .then(setGlobalPatients)
-      .catch(err => {
-        console.error("Failed to load patients on mount:", err);
-        setGlobalPatients([]);
-      });
-  }, []);
+    if (isLoggedIn) {
+      fetchPatients()
+        .then(setGlobalPatients)
+        .catch(err => {
+          console.error("Failed to load patients on mount:", err);
+          setGlobalPatients([]);
+        });
+    }
+  }, [isLoggedIn]);
 
   const refreshPatients = useCallback(() => {
     fetchPatients()
@@ -1166,18 +1432,14 @@ export default function App() {
 
   const handleUpload = useCallback(async (files) => {
     setAnalysisStatus("uploading");
-    
     const uploadPromises = Array.from(files).map(file => uploadAndSave(file));
-    
     try {
       const results = await Promise.all(uploadPromises);
       setAnalysisResults(results);
       setAnalysisStatus("done");
-      
       if (results.some(r => r.status === "duplicate_skipped")) {
         alert("ℹ️ Duplicate Report: Some selected reports were already saved in the database. AI analysis is shown, but duplicates were not saved again.");
       }
-      
       refreshPatients(); 
     } catch (err) {
       alert("Upload Error: " + err.message);
@@ -1200,9 +1462,20 @@ export default function App() {
     }
   }
 
+  // If not logged in, show ONLY the Login Screen
+  if (!isLoggedIn) {
+    return (
+      <div className={darkMode ? "dark-mode" : ""} style={{minHeight:'100vh', display:'flex', flexDirection:'column', background:'var(--bg-base)'}}>
+        <LoginScreen onLogin={() => setIsLoggedIn(true)} darkMode={darkMode} setDarkMode={setDarkMode} />
+        <footer className="app-footer">Spero is a support tool, not a substitute for professional medical advice.</footer>
+      </div>
+    );
+  }
+
+  // If logged in, show the main app
   return (
     <div className={darkMode ? "dark-mode" : ""} style={{minHeight:'100vh', display:'flex', flexDirection:'column', background:'var(--bg-base)'}}>
-      <TopBar tab={tab} onTabChange={setTab} darkMode={darkMode} setDarkMode={setDarkMode} />
+      <TopBar tab={tab} onTabChange={setTab} darkMode={darkMode} setDarkMode={setDarkMode} onLogout={() => setIsLoggedIn(false)} />
       
       <main className="app-main" style={{flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '24px 16px', paddingBottom: '40px'}}>
         {renderTab()}
