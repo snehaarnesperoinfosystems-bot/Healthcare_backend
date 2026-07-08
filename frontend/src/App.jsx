@@ -102,162 +102,190 @@ function LoginScreen({ onLogin, darkMode, setDarkMode }) {
     }
   };
 
-  // ✅ UPDATED: Local image path (ensure spero-bg.jpg is in your 'public' folder)
-  const BG_IMG_URL = "/spero-bg.jpg"; 
-  
-  // Small logo icon for the login card header
-  const LOGO_ICON = "https://z-cdn-media.chatglm.cn/files/e7484de2-0b65-4f97-a003-3413e1d2d5ea.png?auth_key=1883421518-d092fa4cae0f4d87b932d1fea0658d7e-0-36d68d9c901fd880cfc7176e3338deee";
+  const BG_IMG_URL = "/background.png"; 
+  const LOGO_ICON = "/spero-bg.jpg";
+
+  const inputStyle = {
+    width: '100%',
+    padding: '14px 16px',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '12px',
+    color: 'white',
+    outline: 'none',
+    transition: 'all 0.3s'
+  };
 
   return (
     <div style={{ 
       minHeight: '100vh', 
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'flex-end', // Pushes login card to the right side
-      padding: '40px',
+      justifyContent: 'space-between', // Left aur Right ke beech space
+      padding: '40px 60px',
+      position: 'relative',
       backgroundImage: `url(${BG_IMG_URL})`,
       backgroundSize: 'cover',
-      backgroundPosition: 'left center', // ✅ Focuses on the left side where "Spero" text is
-      backgroundRepeat: 'no-repeat',
-      position: 'relative',
-      boxShadow: 'inset 0 0 200px rgba(0,0,0,0.5)' 
+      backgroundPosition: 'center',
+      fontFamily: 'Space Grotesk, sans-serif'
     }}>
       
-      {/* ✅ UPDATED: Dark overlay gradient to make text pop but keep left side visible */}
+      {/* Dark cinematic overlay for better readability */}
       <div style={{ 
         position: 'absolute', 
         top: 0, left: 0, right: 0, bottom: 0, 
-        background: 'linear-gradient(to right, rgba(0, 0, 0, 0.2) 0%, rgba(10, 20, 40, 0.5) 40%, rgba(0, 0, 0, 0.85) 100%)',
+        background: 'linear-gradient(105deg, rgba(0,0,0,0.8) 0%, rgba(10,20,40,0.6) 60%, rgba(0,0,0,0.3) 100%)',
         zIndex: 1
       }}></div>
 
-      {/* Glassmorphism Login Card (Right Side) */}
+      {/* Left Side: Small Logo & Branding */}
+      <div style={{
+        position: 'relative',
+        zIndex: 2,
+        display: window.innerWidth > 768 ? 'flex' : 'none', // Chote screen par chup jayega
+        flexDirection: 'column',
+        gap: '16px',
+        maxWidth: '400px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src={LOGO_ICON} 
+            alt="Spero Logo" 
+            style={{ 
+              width: '48px', // Chota logo
+              height: '48px', 
+              borderRadius: '12px', 
+              objectFit: 'cover', 
+              border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+            }}
+          />
+          <div>
+            <div style={{ fontSize: '22px', fontWeight: '700', color: 'white', lineHeight: 1 }}>Spero</div>
+            <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--accent)', marginTop: '2px' }}>Healthcare OS</div>
+          </div>
+        </div>
+        
+        <h1 style={{ 
+          margin: '20px 0 0 0', 
+          fontSize: '36px', 
+          fontWeight: '700', 
+          color: 'white',
+          lineHeight: '1.3',
+          textShadow: '0 4px 20px rgba(0,0,0,0.4)'
+        }}>
+          Clinical Decision Support System for modern healthcare.
+        </h1>
+        <p style={{ 
+          margin: '0', 
+          fontSize: '15px', 
+          lineHeight: '1.6', 
+          color: 'rgba(255,255,255,0.7)'
+        }}>
+          Secure, intelligent, and patient-centric.
+        </p>
+      </div>
+
+      {/* Right Side: Floating Glass Login Card */}
       <div style={{ 
         position: 'relative',
         zIndex: 2,
         width: '100%',
-        maxWidth: '440px',
-        padding: '48px 40px',
-        background: 'rgba(15, 23, 42, 0.55)', // Slightly darker frosted glass for contrast
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        maxWidth: '400px',
+        padding: '40px',
+        background: 'rgba(15, 23, 42, 0.65)', 
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
         color: 'white'
       }}>
         
-        {/* Header / Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-          <img 
-            src={LOGO_ICON} 
-            alt="Spero Logo" 
-            style={{ width: '64px', height: '64px', marginBottom: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.1)', padding: '6px' }}
+        <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: 'white' }}>
+          Welcome back, Doctor
+        </h2>
+        <p style={{ margin: '0 0 28px 0', color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>
+          Secure access to Spero Healthcare OS
+        </p>
+
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <input 
+            type="email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            placeholder="Doctor ID (Email)" 
+            required 
+            style={inputStyle}
+            onFocus={(e) => { e.target.style.border = '1px solid var(--accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(14, 124, 123, 0.2)'; }}
+            onBlur={(e) => { e.target.style.border = '1px solid rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
           />
-          <h1 style={{ margin: 0, fontFamily: 'Space Grotesk, sans-serif', fontSize: '30px', fontWeight: '700', letterSpacing: '-0.5px' }}>
-            Doctor Login
-          </h1>
-          <p style={{ margin: '8px 0 0 0', color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>
-            Secure access to Spero Healthcare OS
-          </p>
-        </div>
-
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'rgba(255,255,255,0.9)' }}>Doctor ID (Email)</label>
-            <input 
-              type="email" 
-              className="chat-input" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              placeholder="doctor@spero.com" 
-              required 
-              style={{ 
-                width: '100%', 
-                padding: '14px 16px', 
-                fontSize: '15px', 
-                boxSizing: 'border-box', 
-                background: 'rgba(255,255,255,0.1)', 
-                border: '1px solid rgba(255,255,255,0.2)', 
-                borderRadius: '12px', 
-                color: 'white',
-                outline: 'none',
-                transition: 'border 0.2s'
-              }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--accent)'}
-              onBlur={(e) => e.target.style.border = '1px solid rgba(255,255,255,0.2)'}
-            />
-          </div>
           
-          <div style={{ marginBottom: '28px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'rgba(255,255,255,0.9)' }}>Password</label>
-            <input 
-              type="password" 
-              className="chat-input" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              placeholder="••••••••" 
-              required 
-              style={{ 
-                width: '100%', 
-                padding: '14px 16px', 
-                fontSize: '15px', 
-                boxSizing: 'border-box', 
-                background: 'rgba(255,255,255,0.1)', 
-                border: '1px solid rgba(255,255,255,0.2)', 
-                borderRadius: '12px', 
-                color: 'white',
-                outline: 'none',
-                transition: 'border 0.2s'
-              }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--accent)'}
-              onBlur={(e) => e.target.style.border = '1px solid rgba(255,255,255,0.2)'}
-            />
-          </div>
+          <input 
+            type="password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            placeholder="Password" 
+            required 
+            style={inputStyle}
+            onFocus={(e) => { e.target.style.border = '1px solid var(--accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(14, 124, 123, 0.2)'; }}
+            onBlur={(e) => { e.target.style.border = '1px solid rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+          />
 
-          {error && <p style={{ color: '#ffcccc', fontSize: '13px', textAlign: 'center', marginBottom: '16px', background: 'rgba(239, 68, 68, 0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>{error}</p>}
+          {error && (
+            <p style={{ 
+              color: '#ffcccc', 
+              fontSize: '13px', 
+              textAlign: 'center', 
+              background: 'rgba(239, 68, 68, 0.15)', 
+              padding: '12px', 
+              borderRadius: '10px', 
+              border: '1px solid rgba(239,68,68,0.3)',
+              margin: 0
+            }}>
+              {error}
+            </p>
+          )}
 
           <button 
             type="submit" 
             style={{ 
-              width: '100%', 
-              padding: '16px', 
-              fontSize: '16px', 
+              marginTop: '8px',
+              padding: '15px', 
+              fontSize: '15px', 
               fontWeight: '700', 
-              background: 'var(--accent)', 
+              background: 'linear-gradient(90deg, var(--accent) 0%, #16a3a2 100%)', 
               color: 'white', 
               border: 'none', 
               borderRadius: '12px', 
               cursor: 'pointer',
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s',
-              boxShadow: '0 4px 12px rgba(14, 124, 123, 0.4)'
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              boxShadow: '0 8px 20px rgba(14, 124, 123, 0.3)'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(14, 124, 123, 0.6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 124, 123, 0.4)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 25px rgba(14, 124, 123, 0.5)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(14, 124, 123, 0.3)'; }}
           >
             Secure Login
           </button>
         </form>
         
-        <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            🔒 Authorized personnel only.
-          </div>
+        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button 
             onClick={() => setDarkMode(!darkMode)} 
             style={{ 
-              background: 'rgba(255,255,255,0.1)', 
-              border: '1px solid rgba(255,255,255,0.2)', 
-              color: 'rgba(255,255,255,0.8)', 
-              padding: '8px 14px', 
-              borderRadius: '8px', 
+              background: 'none', 
+              border: 'none', 
+              color: 'rgba(255,255,255,0.6)', 
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: '600'
             }}
           >
             {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
           </button>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>🔒 Authorized only</span>
         </div>
       </div>
     </div>
@@ -266,45 +294,54 @@ function LoginScreen({ onLogin, darkMode, setDarkMode }) {
 
 /* -------------------------------- Top bar -------------------------------- */
 function TopBar({ tab, onTabChange, darkMode, setDarkMode, onLogout }) {
-  const LOGO_URL = "https://z-cdn-media.chatglm.cn/files/e7484de2-0b65-4f97-a003-3413e1d2d5ea.png?auth_key=1883421518-d092fa4cae0f4d87b932d1fea0658d7e-0-36d68d9c901fd880cfc7176e3338deee";
+  const LOGO_URL = "/spero-bg.jpg";
 
   return (
     <header className="topbar" style={{ flexDirection: 'column', gap: '12px', paddingBottom: '12px' }}>
-      <div style={{ width: '100%', textAlign: 'center', fontSize: '22px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'Space Grotesk, sans-serif', paddingTop: '5px' }}>
+      <div style={{ width: '100%', textAlign: 'center', fontSize: '20px', fontWeight: '700', color: 'var(--accent)', fontFamily: 'Space Grotesk, sans-serif', paddingTop: '5px', letterSpacing: '1px' }}>
         Clinical Decision Support System (CDSS)
       </div>
 
       <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="topbar-brand">
-          {/* ⭐ Logo image replaces the SVG cross — shows on ALL pages */}
-          <img
-            src={LOGO_URL}
-            alt="Spero Logo"
-            style={{
-              width: '40px',
-              height: '40px',
-              objectFit: 'contain',
-              borderRadius: '10px',
-              background: 'var(--accent)',
-              padding: '4px'
-            }}
-          />
+        <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Premium App Icon Style Logo */}
+          <div style={{
+            padding: '2px',
+            background: 'linear-gradient(135deg, rgba(14, 124, 123, 0.2), rgba(255,255,255,0.1))',
+            borderRadius: '12px',
+            border: '1px solid var(--border-light)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          }}>
+            <img
+              src={LOGO_URL}
+              alt="Spero Logo"
+              style={{
+                width: '36px',
+                height: '36px',
+                objectFit: 'cover',
+                borderRadius: '10px',
+                display: 'block'
+              }}
+            />
+          </div>
           <div>
-            <div className="brand-name">Spero</div>
-            <div className="brand-tag">Healthcare OS</div>
+            <div className="brand-name" style={{ fontSize: '18px', fontWeight: '700', lineHeight: 1.1 }}>Spero</div>
+            <div className="brand-tag" style={{ fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Healthcare OS</div>
           </div>
         </div>
+        
         <nav className="tab-nav" role="tablist">
           <button className={`tab-btn ${tab === "analyze" ? "active" : ""}`} onClick={() => onTabChange("analyze")}>Analyze</button>
           <button className={`tab-btn ${tab === "patients" ? "active" : ""}`} onClick={() => onTabChange("patients")}>Patients</button>
           <button className={`tab-btn ${tab === "assistant" ? "active" : ""}`} onClick={() => onTabChange("assistant")}>AI Assistant</button>
           <button className={`tab-btn ${tab === "wellness" ? "active" : ""}`} onClick={() => onTabChange("wellness")}>Mental Wellness</button>
         </nav>
+        
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button className="btn-outline" onClick={() => setDarkMode(!darkMode)}>
+          <button className="btn-outline" onClick={() => setDarkMode(!darkMode)} style={{ padding: '8px 12px' }}>
             {darkMode ? "☀️" : "🌙"}
           </button>
-          <button className="btn-outline" onClick={onLogout} style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}>
+          <button className="btn-outline" onClick={onLogout} style={{ borderColor: 'var(--coral)', color: 'var(--coral)', padding: '8px 16px', fontWeight: '600' }}>
             Logout
           </button>
         </div>
@@ -370,22 +407,14 @@ function PatientBand({ summary, filename, riskTier }) {
 }
 
 function ResultsView({ result }) {
-  const { analysis, risk_tier } = result;
+  // 🔴 CRITICAL CONDITION CHECK — Yahan check karenge
+  // Agar status critical hai, toh normal result mat dikhao, Alert dikhao
+  if (result.status === "critical_condition_detected") {
+    return <CriticalAlertView result={result} />;
+  }
   
-  // HUMAN OVERSIGHT & GRIEVANCE REDRESSAL STATE
-  const [isApproved, setIsApproved] = useState(false);
-  const [issueReported, setIssueReported] = useState(false);
-
-  const handleApprove = () => {
-    // In a real app, this would call the backend AuditLog API
-    setIsApproved(true);
-    alert("Doctor approval logged successfully.");
-  };
-
-  const handleReportIssue = () => {
-    setIssueReported(true);
-    alert("Grievance logged. The AI insight will be flagged for review.");
-  };
+  // Agar critical nahi hai, tabhi neeche ka normal code chalega
+  const { analysis, risk_tier } = result;
 
   return (
     <div>
@@ -396,35 +425,6 @@ function ResultsView({ result }) {
         <FindingCard icon={ICONS.tests} label="Recommended tests"><ListBlock items={analysis.recommended_tests} /></FindingCard>
         <FindingCard icon={ICONS.treatment} label="Possible Management Considerations"><ListBlock items={analysis.treatment_suggestions} /></FindingCard>
         <FindingCard icon={ICONS.precautions} label="Precautions"><ListBlock items={analysis.precautions} /></FindingCard>
-      </div>
-      
-      {/* EXPLAINABILITY SECTION */}
-      <div className="finding-card" style={{marginTop: '16px', borderLeft: '4px solid var(--accent)'}}>
-        <div className="finding-head"><div className="finding-icon">{ICONS.trend}</div><div className="finding-label">AI Explainability (Patient-Friendly)</div></div>
-        <div className="finding-body">
-          <p className="prose-text" style={{fontSize: '14px', color: 'var(--text-muted)'}}>
-            {analysis.explainability || "These suggestions are based on standard medical guidelines matching the lab values found in your report. They are intended as a 'second opinion' to assist your doctor."}
-          </p>
-        </div>
-      </div>
-
-      {/* HUMAN OVERSIGHT & GRIEVANCE REDRESSAL CONTROLS */}
-      <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
-        {issueReported ? (
-          <span style={{ color: 'var(--coral)', fontSize: '13px', fontWeight: '600' }}>✓ Issue Reported</span>
-        ) : (
-          <button className="btn-outline" onClick={handleReportIssue} style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}>
-            ⚠️ Report AI Issue
-          </button>
-        )}
-        
-        {isApproved ? (
-          <span style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: '600' }}>✓ Doctor Approved</span>
-        ) : (
-          <button className="btn-primary" onClick={handleApprove}>
-            ✓ Doctor Approve Summary
-          </button>
-        )}
       </div>
 
       <p style={{fontSize:"11px", color:"var(--text-muted)", marginTop:"16px"}}>{analysis.disclaimer || "For informational purposes only."}</p>
@@ -452,7 +452,7 @@ function AnalyzeTab({ status, results, onUpload, onReset }) {
             style={{ width: '20px', height: '20px', cursor: 'pointer' }}
           />
           <label htmlFor="consent" style={{ fontSize: '14px', color: 'var(--text-primary)', cursor: 'pointer' }}>
-            I confirm explicit patient consent has been obtained for AI analysis and data storage. (Required)
+            I confirm explicit patient consent has been obtained for AI analysis. (Required)
           </label>
         </div>
 
@@ -484,6 +484,66 @@ function AnalyzeTab({ status, results, onUpload, onReset }) {
   );
 }
 
+/* -------------------------------- Critical Alert View (Short & Simple) -------------------------------- */
+function CriticalAlertView({ result }) {
+  return (
+    <div style={{
+      margin: '24px 0',
+      padding: '32px 24px',
+      background: 'linear-gradient(135deg, rgba(14, 124, 123, 0.05), rgba(14, 124, 123, 0.02))',
+      border: '1px solid var(--accent)',
+      borderRadius: '16px',
+      textAlign: 'center',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
+    }}>
+      {/* Soft Medical Icon */}
+      <div style={{ fontSize: '48px', marginBottom: '12px' }}>🩺</div>
+      
+      <h2 style={{
+        color: 'var(--accent)',
+        fontFamily: 'Space Grotesk, sans-serif',
+        fontSize: '22px',
+        fontWeight: '600',
+        margin: '0 0 10px',
+        lineHeight: '1.3'
+      }}>
+        Please consult your doctor
+      </h2>
+
+      <p style={{
+        fontSize: '15px',
+        color: 'var(--text-primary)',
+        lineHeight: '1.6',
+        maxWidth: '400px',
+        margin: '0 auto 20px'
+      }}>
+        This report requires a doctor's expert review.
+      </p>
+
+      {/* Filename */}
+      <div style={{
+        display: 'inline-block',
+        padding: '6px 14px',
+        background: 'rgba(14, 124, 123, 0.1)',
+        borderRadius: '8px',
+        fontSize: '13px',
+        color: 'var(--accent)',
+        fontWeight: '600',
+        marginBottom: '20px'
+      }}>
+        📄 Report: {result.filename}
+      </div>
+
+      <p style={{
+        fontSize: '11px',
+        color: 'var(--text-muted)',
+        marginTop: '16px'
+      }}>
+        AI analysis is limited for this report.
+      </p>
+    </div>
+  );
+}
 /* -------------------------------- Patients tab -------------------------------- */
 function PatientListItem({ patient, onSelect }) {
   return (
