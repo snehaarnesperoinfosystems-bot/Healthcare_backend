@@ -1,17 +1,8 @@
-﻿"""
-Knowledge Graph entity extraction.
-
-Pulls clean entity names (conditions, tests, treatments) out of the free-text
-diagnosis/recommended_tests/treatment_suggestions fields already stored per report.
-
-Uses a single lightweight ollama call per report (cached in the DB after first
-extraction) rather than re-parsing on every graph request.
-"""
-
-import json
-import re
+﻿import json
+import logging
 import ollama
 
+logger = logging.getLogger("entity_extraction")
 
 ENTITY_PROMPT = """Extract medical entities from this report data as JSON.
 
@@ -37,48 +28,32 @@ Recommended tests: {tests}
 Treatment suggestions: {treatments}
 """
 
-
 def _extract_json_object(raw: str) -> str:
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+        if raw.startswith("json"): raw = raw[4:]
         raw = raw.strip()
     start = raw.find("{")
     end = raw.rfind("}")
-    if start == -1 or end == -1 or end < start:
-        raise json.JSONDecodeError("No JSON object found", raw, 0)
+    if start == -1 or end == -1 or end < start: raise ValueError("No JSON object found")
     return raw[start:end + 1]
 
-
-def extract_entities(diagnosis: str, tests: list[str], treatments: list[str]) -> dict:
-    """
-    Returns {"conditions": [...], "tests": [...], "treatments": [...]}
-    Falls back to empty lists if the model fails -- never raises.
-    """
+def extract_entities(diagnosis: str, tests: list, treatments: list) -> dict:
     try:
         response = ollama.chat(
             model="medgemma:latest",
-            messages=[
-                {
-                    "role": "user",
-                    "content": ENTITY_PROMPT.format(
-                        diagnosis=diagnosis or "None",
-                        tests=", ".join(tests) if tests else "None",
-                        treatments=", ".join(treatments) if treatments else "None",
-                    )
-                }
-            ],
+            messages=[{"role": "user", "content": ENTITY_PROMPT.format(diagnosis=diagnosis or "None", tests=", ".join(tests) if tests else "None", treatments=", ".join(treatments) if treatments else "None")}],
+            format="json",
             options={"temperature": 0, "num_predict": 256}
         )
         raw = response["message"]["content"]
         parsed = json.loads(_extract_json_object(raw))
-
         return {
             "conditions": [c.strip() for c in parsed.get("conditions", []) if c and c.strip()],
             "tests": [t.strip() for t in parsed.get("tests", []) if t and t.strip()],
             "treatments": [t.strip() for t in parsed.get("treatments", []) if t and t.strip()],
         }
-    except Exception:
+    except Exception as e:
+        logger.error(f"[KG] Entity extraction FAILED: {e}")
         return {"conditions": [], "tests": [], "treatments": []}
